@@ -1,1 +1,0 @@
-createHistoryTable(demiseCharterHistoryDS);
