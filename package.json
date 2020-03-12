@@ -1,0 +1,27 @@
+{
+  "name": "grunt2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-preset-es2015-without-strict": "0.0.4",
+    "grunt": "^1.0.4",
+    "grunt-babel": "^7.0.0",
+    "grunt-contrib-copy": "^1.0.0",
+    "grunt-contrib-uglify": "^4.0.1",
+    "grunt-contrib-watch": "^1.1.0",
+    "grunt-remove-comments": "^0.1.6",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "babel-preset-es2015": "^6.24.1",
+    "grunt-ts": "^6.0.0-beta.22"
+  }
+}

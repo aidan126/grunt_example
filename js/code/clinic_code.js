@@ -1,0 +1,35 @@
+createCodeTable2(clinicDS, [
+	{name: "id"}, 
+	{name: "name"},
+	{name: "chiName"},
+	{name: "adds1"},
+	{name: "adds2"},
+	{name: "adds3"},
+	{name: "chiAdds1"},
+	{name: "chiAdds2"},
+	{name: "chiAdds3"},
+	{name: "tel"},
+	{name: "email"},
+	{name: "noq"},
+	{name: "year"},
+	{name: "regNo"},
+	{name: "recognizedIndicator"}
+],
+[
+	{name: "id", type:"staticText"}, 
+	{name: "name", type:"text"},
+	{name: "chiName", type:"text"},
+	{name: "adds1", type:"text"},
+	{name: "adds2", type:"text"},
+	{name: "adds3", type:"text"},
+	{name: "chiAdds1", type:"text"},
+	{name: "chiAdds2", type:"text"},
+	{name: "chiAdds3", type:"text"},
+	{name: "tel"},
+	{name: "email"},
+	{name: "noq", type:"text"},
+	{name: "year", type:"integer"},
+	{name: "regNo", type:"text"},
+	{name: "recognizedIndicator", type:"text"}
+	
+],["id"], 'paged');

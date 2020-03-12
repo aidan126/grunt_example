@@ -1,0 +1,21 @@
+createCodeTable2(sptype_codeDS,
+	[
+		{ name: "id", width:60},
+		{ name: "sptype_name", width: 500},
+		{ name: "is_bcc", width: 80},
+		{ name: "is_clc", width: 60},
+		{ name: "is_msmc", width: 60},
+		{ name: "remark", width: 200},
+		{ name: "del_mark", width: 80},
+	],
+	[
+		//{ name: "id", type: "staticText"},
+		{ name: "id"},
+		{ name: "sptype_name", length:200},
+		{ name: "is_bcc", length:20},
+		{ name: "is_clc", length:20},
+		{ name: "is_msmc", length:20},
+		{ name: "remark", length:200},
+		{ name: "del_mark"},
+	],
+	["id"], 'paged', 'CODE_HKCERT_SP_TYPE_WRITE|CODETABLE_ALL');

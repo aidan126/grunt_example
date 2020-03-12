@@ -1,0 +1,3587 @@
+/**
+* Qualified Name		/webui/src/main/webapp/js/fsqcdb_code/ecertExemptionsCode.js
+* @author 				Mads Lam
+* @since				2019-08-12
+* **************************************************************************************************************
+* Change log:
+* log no	Change complete date	Developer			Change Reason
+* ======	====================	=========			=============
+* 00000		2019-08-12				Mads Lam			Initial Implementation
+* 00001		2019-09-03				Dicky Lee			add access control
+*/
+
+//Exemption Code
+
+var EditedExemptionsCodeFormRecord = [];
+var EditedExemptionsCodeRecord = [];
+
+var NewExemptionsCodeRecordId = [];
+var NewExemptionsCodeRecord = [];
+var newExemptionRecordFlag = false;
+var tempNew_ExemptionRecordId = -1;
+
+var cert_ecertDicContentId = -1;
+var min_ecertDicContentId = -1;
+var cert_ecertdicItemArr = [];
+var min_ecertdicItemArr = [];
+
+var DeleteEcertDicContentRecord = [];
+var tempNew_ecertDicContentId = -1;
+var tempNew_ecertDicItemId = -1;
+var selectedExemptionRecord = {};
+
+var exemptionCodeUnsaveFlag_mainGrid = false;
+var exemptionCodeUnsaveFlag_otherParts = false;
+
+function openExemptionCode(exemptionTypes, formTypes, returnSelectedExemption){
+
+	//console.log(exemptionEditVM);
+/*	if (typeof exemptionEditVM !== "undefined") {
+		
+		if (exemptionEditVM.getValue('equipments') !="Equipment"){
+			 exemptionType="Dispensation";
+		 }else{
+			 exemptionType="Exemption";
+		 }
+		
+	}
+	console.log(exemptionType);
+*/	
+	
+	ExemptionCodeContent();
+	ExemptionCodeWindow.show();
+
+	function ExemptionCodeContent(){
+
+		/*
+	    var valueMan = isc.ValuesManager.create({
+	        ID: "exemptionCodeVM",
+	        dataSource: ecertExemptionsCodeDS
+	    });
+		*/
+
+		isc.ListGrid.create({
+		  ID: "ecertExemptionsCodeListGrid",
+		  dataSource: ecertExemptionsCodeDS,
+	      //valuesManager:valueMan,
+		  width:"50%",
+		  height:500,
+		  autoFetchData: true,
+		  autoFitFieldWidths:true,
+		  autoConfirmSaveEdits:true,
+		  canEdit: true,
+		  editOnFocus: true,
+		  canSelectCells: true,
+		  canRemoveRecords:false,
+		  autoSaveEdits: true,
+		  saveLocally: true,
+		  saveByCell: true,
+		  editEvent: "click",
+		  showFilterEditor:true,
+		  showAllRecords:true,
+		  fields:[
+		      {name:"id", title:"ID",  width:40, hidden:true, canEdit:false},
+		      {name:"level_no1", title:"Level 1 Convention"},
+		      {name:"level_no2", title:"Level 2 Chapter/Annex"},
+		      {name:"level_no3", title:"Level 3 Regulation"},
+		      {name:"level_no4", title:"Level 4 Equipment etc"},
+		      {name:"level_no5", title:"Level 5 Component"},
+		      {name:"hk_law", title:"HK Law"},
+		      {name:"exemption_type", title:"Exemption Type"},
+		      {name:"output_type", title:"Type of Output"},
+		      {name:"remarks", title:"Remarks", hidden:true, width:100},
+		      {name:"keywords", title:"Keywords", hidden:true, width:300},
+		      {name:"keywordList", title:"Keyword List", hidden:true, width:300},
+		      {name:"exemption_for", title:"Heading for Minute", hidden:true, width:300},
+		      {name:"subheading", title:"Heading for Cert", hidden:true, width:300},
+		      {name:"ecertDicContent", hidden:true, width:800},
+		      {name:"ecertDicItem", hidden:true, width:800},
+		  ],
+		  sortField: 1,
+		  sortDirection: "ascending",
+
+		  //rowClick:function(record, recordNum, fieldNum){
+		  recordClick:function(viewer, record, recordNum, field, fieldNum, value, rawValue){
+
+			  console.log(record);
+			  //console.log(record.id);
+			  console.log(recordNum);
+
+			  if(record){
+				  setAllComponents( this.getEditedRecord(this.getRowNum(this.getSelectedRecord())), recordNum, fieldNum);
+				  //setAllComponents( this.getSelectedRecord(), recordNum, fieldNum, exemptionTypes);				  
+			  }
+
+			  //if(this.canEdit && (record.id != undefined || record.id != null || record.id != "")){
+			  if(this.canEdit){
+				  if(record){
+					  if(record.id > 0){
+						  this.startEditing(recordNum, fieldNum);
+						  enableAllComponents();					  
+					  }			  
+				  }else{
+					  
+					  this.startEditing(recordNum, fieldNum);
+					  disableAllComponents();
+				  }		
+			  }
+			  
+	      	  var itemlistgrid = getItemListGrid( getFormType(formTypeBtn) );
+	    	  if(exemptionTypes != null && itemlistgrid.getTotalRows() > 0 ){
+	    		  itemlistgrid.selectAllRecords();
+	    	  }
+		  },
+		  //rowEditorExit:function(editCompletionEvent, record, newValues, rowNum){
+			  //if(newValues.id < 0){
+				  //this.setEditValues(rowNum, newValues);
+			  //}
+		  //},
+		  //cellChanged :function(record, newValue, oldValue, rowNum, colNum, grid){
+		  //rowHasChanges :function(){
+		  //},
+		  editComplete :function(rowNum, colNum, newValues, oldValues, editCompletionEvent){
+
+			  exemptionCodeUnsaveFlag_mainGrid = true;
+			  
+			  if(newValues.id < 0){
+				  
+					if(!NewExemptionsCodeRecordId.includes(newValues.id)){
+						NewExemptionsCodeRecordId.push(newValues.id);
+						NewExemptionsCodeRecord.push(newValues);
+					}else{
+						NewExemptionsCodeRecord.remove( NewExemptionsCodeRecord.find({id:newValues.id}) );
+						NewExemptionsCodeRecord.push(newValues);
+					}
+					
+					if(saveExemptionsCodebtn.getState() == ""){
+						this.setEditValues(rowNum, NewExemptionsCodeRecord.find({id:newValues.id}));
+						//this.setEditValues(rowNum, this.getEditedRecord(rowNum));
+						//this.setEditValues(rowNum, newValues);
+						//this.endEditing();
+					}
+
+				}else{
+/*					if(!EditedExemptionsCodeRecord.includes(this.getSelectedRecord().id)){
+						EditedExemptionsCodeRecord.push(this.getSelectedRecord().id);
+					}
+*/
+					saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeRecord);
+				}
+		  },
+/*		  click :function(){
+			  console.log(exemptionTypes);
+			  ecertExemptionsCodeListGrid.fetchData({"exemption_type":exemptionTypes});
+		  },
+*/		  
+		 //getData: function(){
+				//var data = this.findAll({exemption_type:"Exemption"});
+
+			  	//this.refresh();
+				//this.setData([]);
+				//this.setEditValues(0,[]);
+				//if(data){
+					//ecertExemptionsCodeListGrid.refresh(data);
+				//}
+				
+				//return data;
+		 //},
+		 //setData: function(data) {
+		 //refresh: function(){
+			  	
+				//console.log(data);
+			  	
+	        	//this.setData([]);
+	        	//this.fetchData({"exemption_type":exemptionTypes});
+				//this.setEditValues(0, data[0]);
+				
+				//for (t = 0; t < data.length; t++){
+					//this.setEditValues(t, data[t]);
+					//console.log(t);
+				//}
+				
+			  	//this.setData(data);
+			  	//var data = ecertExemptionsCodeListGrid.findAll({exemption_type:"Exemption"});
+		  		//console.log(data);
+				
+		  //},
+		  
+		  dataArrived :function(startRow, endRow){
+				
+				//ecertExemptionsCodeListGrid.refresh();
+			  	//ecertExemptionsCodeListGrid.fetchData({exemption_type:"Exemption"});
+				
+				if(!newExemptionRecordFlag){
+				    if(exemptionTypes != null && isEmpty(selectedExemptionRecord)){
+				    	if(exemptionEditVM.getValue('exempt_code_id') != null){
+				    		var selectedExemptionsCodeRecord = {};
+				    		selectedExemptionsCodeRecord['id'] = exemptionEditVM.getValue('exempt_code_id');
+
+				    		//this.deselectAllRecords();
+				    		this.focusInCell(this.getRowNum(selectedExemptionsCodeRecord), 1);
+				    		this.selectRecord(selectedExemptionsCodeRecord);
+				    	}
+				    }
+
+		    		if( this.getSelection().length >= 1 ){
+
+		    			this.startEditing(this.getRowNum(selectedExemptionsCodeRecord), 1);
+		    			setAllComponents( this.getSelectedRecord(), this.getRowNum(selectedExemptionsCodeRecord), 1);
+
+		  	  		  	var itemlistgrid = getItemListGrid( getFormType(formTypeBtn) );
+		  	  		  	if(exemptionTypes != null && itemlistgrid.getTotalRows() > 0 ){
+		  	  		  		itemlistgrid.selectAllRecords();
+		  	  		  	}
+		    		}
+
+				    if(MainBtnBar.hasMember(saveExemptionsCodebtn)){
+				    	this.setCanEdit(true);
+				    }else{
+				    	this.setCanEdit(false);
+				    }
+				}
+			}				
+
+		});
+
+		//ecertExemptionsCodeListGrid.refresh();
+		if(exemptionTypes){
+			ecertExemptionsCodeListGrid.fetchData({"exemption_type":exemptionTypes});
+		}
+
+		isc.DynamicForm.create({
+		    ID: "ecertExemptionsCodeSearch",
+		    width:"100%",
+		    numCols: 4,
+		    colWidths: [10, 300, 10, "*"],
+		    align:"left",
+		    //autoFocus: true,
+		    //dataSource: "hkCertDS",
+		    saveOnEnter: true,
+		    submit: function(){
+		        this.getItem("query").click();
+		    },
+		    items:[
+		        {type: "SpacerItem", width:"*"},
+		        {
+		            type: "text",
+		            name: "search",
+		            title: "",
+		            textAlign:"left",
+		            //selectOnFocus: true,
+		            wrapTitle: false,
+		            startRow: false,
+		            width:300,
+		            width:"*",
+		            showTitle:false,
+		            defaultValue: ""
+		        },
+		        {type: "SpacerItem", width:"*"},
+		        {
+		            type: "button",
+		            name: "query",
+		            title: "Query",
+		            width:70,
+		            //width:"*",
+		            textAlign:"center",
+		            //selectOnFocus: true,
+		            wrapTitle: false,
+		            startRow: false,
+		            defaultValue: "",
+		            click:function(){
+
+		            	var search = ecertExemptionsCodeSearch.getItem("search").getValue();
+		            	if (!isNull(search)){
+		            		search = search.trim();
+
+//			            	var advancedCriteria = {
+//			             	       _constructor:"AdvancedCriteria",
+//			             	       operator:"or",
+//			             	       criteria:[
+//			             	           // this is a Criterion
+//			             	           { fieldName:"level_no5", operator:"iContains", value:search },
+//			             	           /*
+//			             	           { operator:"or", criteria:[
+//			             	                 { fieldName:"level_no1", operator:"iContains", value:search }
+//			             	                 //{ fieldName:"reports", operator:"notNull" }
+//			             	             ]
+//			             	           }
+//			             	           */
+//			             	       ]
+//			             	};
+//
+//
+//			            	ecertExemptionsCodeListGrid.fetchData(advancedCriteria);
+
+			            	filterWithOrOnMultipleFields(search, exemptionTypes);
+
+		            	}else{
+		            		ecertExemptionsCodeListGrid.fetchData({});
+		            	}
+		            }
+		        }
+			]
+		});
+
+		isc.IButton.create({
+			  ID: "selectExemptionsCodebtn",
+			  autoDraw: false,
+			  width:90,
+			  layoutAlign:"center",
+			  title: "OK",
+			  click:function (){
+				  	if(ecertExemptionsCodeListGrid.anySelected()){
+				  		
+//						  isc.ask("Warning: This will overwrite any previously saved Min & Cert contents!! Are you sure to continue? [y/n]" , function (value){
+//							  if (value){
+
+				  					ecertExemptionsCodeListGrid.endEditing();
+				  					keywordsListGrid.endEditing();
+				  			        cert_hiddenEcertDicItemListGrid.endEditing();
+				  			        min_hiddenEcertDicItemListGrid.endEditing();
+				  		
+								  	cert_hiddenEcertDicItemListGrid.sort(2, "ascending");
+								  	min_hiddenEcertDicItemListGrid.sort(2, "ascending");
+
+								  	if(cert_hiddenEcertDicContentListGrid.anySelected()){
+									  	cert_ecertDicContentId = cert_hiddenEcertDicContentListGrid.getSelectedRecord().id;
+								  	}
+								  	if(min_hiddenEcertDicContentListGrid.anySelected()){
+									  	min_ecertDicContentId = min_hiddenEcertDicContentListGrid.getSelectedRecord().id;
+								  	}
+
+								  	for (i = 0; i < cert_hiddenEcertDicItemListGrid.getSelectedRecords().length; i++) {
+								  		cert_ecertdicItemArr[i] = cert_hiddenEcertDicItemListGrid.getSelectedRecords()[i].id;
+								  	}
+								  	for (i = 0; i < min_hiddenEcertDicItemListGrid.getSelectedRecords().length; i++) {
+								  		min_ecertdicItemArr[i] = min_hiddenEcertDicItemListGrid.getSelectedRecords()[i].id;
+								  	}
+
+								  	//if(hiddenEcertDicContentListGrid.getSelectedRecord().id == null){
+								  	//var return_data = {
+								  	//ex_code_id:ecertExemptionsCodeListGrid.getSelectedRecord().id
+								  	//, content_id:hiddenEcertDicContentListGrid.getSelectedRecord().id
+								  	//, conditions_ids:dicItemarr
+								  	//};
+								  	//}else{
+								  	var return_data = {
+								  			ex_code_id: ecertExemptionsCodeListGrid.getSelectedRecord().id,
+								  			ex_code_form_type: ecertExemptionsCodeListGrid.getSelectedRecord().output_type,
+								  			cert_content_id: cert_ecertDicContentId,
+								  			min_content_id: min_ecertDicContentId,
+								  			cert_conditions_ids: cert_ecertdicItemArr,
+								  			min_conditions_ids: min_ecertdicItemArr,
+								  			cert_ExistFlag: true,
+								  			min_ExistFlag: true,
+								  	};
+								  	//}
+								  	console.log("return_data");
+								  	console.log(return_data);
+
+									if(exemptionCodeUnsaveFlag_mainGrid || exemptionCodeUnsaveFlag_otherParts){
+								    		isc.ask("Edited content(s) is/are not saved. Are you sure to Go Next?", function(value){
+								    				  if (value){
+														  returnSelectedExemption( true, return_data );
+														  resetVariables();
+								    					  ExemptionCodeWindow.hide();
+								    				  }
+								    		});
+									}else{
+										  returnSelectedExemption( true, return_data );
+										  resetVariables();
+				    					  ExemptionCodeWindow.hide();
+									}
+//							  }
+//						  });
+
+					}else{
+						isc.say("No Exemption/Dispensation is Selected.");
+					}
+			  }
+		});
+
+		isc.IButton.create({
+			  ID: "copyRecordBtn",
+			  autoDraw: false,
+			  width:150,
+			  layoutAlign:"center",
+			  title: "Copy Record",
+			  showDisabled:false,
+			  //--start 00001 ---
+			  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+			  //---end 00001 ==
+			  click:function() {
+				  if(ecertExemptionsCodeListGrid.anySelected()){
+
+					  var ExemptionsCode_record = {};
+					  ExemptionsCode_record['exemption_type'] = ecertExemptionsCodeListGrid.getSelectedRecord().exemption_type;
+					  ExemptionsCode_record['output_type'] = ecertExemptionsCodeListGrid.getSelectedRecord().output_type;
+					  ExemptionsCode_record['level_no1'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no1;
+					  ExemptionsCode_record['level_no2'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no2;
+					  ExemptionsCode_record['level_no3'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no3;
+					  ExemptionsCode_record['level_no4'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no4;
+					  ExemptionsCode_record['level_no5'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no5;
+					  ExemptionsCode_record['ecertDicItem'] = [];
+					  ExemptionsCode_record['ecertDicContent'] = [];
+
+					  ecertExemptionsCodeListGrid.startEditingNew(ExemptionsCode_record);
+
+					  resetExemptionRemarkKeywordHeading();
+					  resetExemptionReasonsCondition(true);
+					  disableAllComponents();
+					  
+				  }else{
+                	  isc.say("No Exemption/Dispensation is Selected.");
+				  }
+			  }
+		});
+
+		isc.IButton.create({
+			  ID: "addExemptionsCodebtn",
+			  autoDraw: false,
+			  width:90,
+			  layoutAlign:"center",
+			  title: "Add",
+			  //--start 00001 ---
+			  onControl:"EXEMPT_CODE_WRITE||FSQC_ALL",
+			  // -- end 00001 --
+
+			  click:function (){
+				  
+				  //addEcertExemptionsCodeForm.clearValues();
+				  //addEcertExemptionsCodewindow.show();
+
+				  //console.log(NewExemptionsCodeRecord);
+				  //ecertExemptionsCodeListGrid.startEditingNew();
+				  
+				  newExemptionRecordFlag = true;
+				  
+				  var ExemptionsCode_record = {};
+				  ExemptionsCode_record['id'] = tempNew_ExemptionRecordId;
+				  ExemptionsCode_record['exemption_type'] = exemptionTypes;
+				  ExemptionsCode_record['ecertDicItem'] = [];
+				  ExemptionsCode_record['ecertDicContent'] = [];
+				  
+				  ecertExemptionsCodeListGrid.startEditingNew(ExemptionsCode_record);
+
+				  resetExemptionRemarkKeywordHeading();
+				  resetExemptionReasonsCondition(true);
+				  disableAllComponents();
+				  
+				  tempNew_ExemptionRecordId = tempNew_ExemptionRecordId - 1;
+			  }
+		});
+//--------------------------------------------------add new window--------------------------------------------------------------------------------------------------------
+/*		isc.Window.create({
+			  ID: "addEcertExemptionsCodewindow",
+			  title: "New Exemption Code",
+			  width:800,
+			  height:700,
+			  autoSize:true,
+			  autoCenter: true,
+			  isModal: true,
+			  showModalMask: true,
+			  autoDraw: false,
+			  items: [
+			      isc.DynamicForm.create({
+			      	  ID: "addEcertExemptionsCodeForm",
+			          dataSource: ecertExemptionsCodeDS,
+			          width:"100%",
+			      	  autoDraw: false,
+			          height: 48,
+			          align:"center",
+			          autoFetchData: false,
+			          autoSaveEdits: false,
+			          saveLocally: true,
+			          border:"1px solid grey",
+			          padding:20,
+			          spacing:20,
+			          fields: [
+					      {name:"id", title:"ID",  width:40, hidden:true},
+					      {name:"level_no1", title:"Level 1 Convention"},
+					      {name:"level_no2", title:"Level 2 Chapter/Annex"},
+					      {name:"level_no3", title:"Level 3 Regulation"},
+					      {name:"level_no4", title:"Level 4 Equipment etc"},
+					      {name:"level_no5", title:"Level 5 Component"},
+					      {name:"hk_law", title:"HK Law"},
+					      {name:"exemption_type", title:"Exemption Type"},
+					      {name:"output_type", title:"Type of Output"},
+					      //{name:"ecertDicContent", title:"ecertDicContent", hidden:true, defaultValue:[]},
+			              //{name:"ecertDicItem", title:"ecertDicItem", hidden:true, defaultValue:[]}
+			              ]
+			      }),
+			      
+			      {name:"remarks", title:"Remarks", hidden:false, width:100},
+			      {name:"keywords", title:"Keywords", hidden:false, width:300},
+			      {name:"exemption_for", title:"Heading for Minute", hidden:false, width:300},
+			      {name:"subheading", title:"Heading for Cert", hidden:false, width:300},
+			      {name:"ecertDicContent", hidden:false, width:800},
+			      {name:"ecertDicItem", hidden:false, width:800},
+
+				    isc.HLayout.create({
+				    	ID:"ecertExemptionsCodeListGridGroup",
+				    	width:"100%",
+				    	layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	//showEdges: true,
+				    	isGroup: true,
+				    	groupTitle: "Exemption Code",
+				    	membersMargin:50,
+				    	members:[ecertExemptionsCodeListGrid]
+				    }),
+				    isc.HLayout.create({
+				    	ID:"remarksListGridGroup",
+				    	width:"100%",
+				    	layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	//showEdges: true,
+				    	isGroup: true,
+				    	groupTitle: "Remarks",
+				    	membersMargin:0,
+				    	members:[remarksForm]
+				    }),
+				    isc.HLayout.create({
+				    	ID:"keywordsListGridGroup",
+				    	width:"100%",
+				    	//valuesManager:valueMan,
+				    	layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	//showEdges: true,
+				    	isGroup: true,
+				    	groupTitle: "Keywords",
+				    	membersMargin:50,
+				    	members:[keywordsListGrid]
+				    }),
+					isc.DynamicForm.create({
+					    ID: "keyworsDummy",
+					    width:"1",
+					    align:"left",
+					    items:[
+					        {type: "SpacerItem", width:"*"},
+					    ]
+					}),
+				    isc.HLayout.create({
+				    	ID:"keywordsBtnBar",
+				    	width:"100%",
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	align:"center",
+				    	//showEdges: true,
+				    	membersMargin:0,
+				    	//members:[]
+				    	members:[keyworsDummy]
+				    }),
+				    isc.VLayout.create({
+				    	ID:"keywordsGroup",
+				    	width:"100%",
+				    	//layoutTopMargin:10,
+				    	align:"top",
+				    	defaultLayoutAlign: "top",
+				    	//showEdges: true,
+				    	membersMargin:5,
+				    	members:[keywordsListGridGroup, keywordsBtnBar]
+				    }),
+				    isc.HLayout.create({
+				    	ID:"remarkskeywordsListGridGroup",
+				    	width:"100%",
+				    	layoutTopMargin:0,
+				    	defaultLayoutAlign: "center",
+				    	//showEdges: true,
+				    	membersMargin:10,
+				    	members:[remarksListGridGroup, keywordsGroup]
+				    }),
+				    isc.VLayout.create({
+				    	ID:"LeftColumn",
+				    	width:"50%",
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	//members:[queryListBtnBar, ecertExemptionsCodeListGridGroup, remarkskeywordsListGridGroup]
+				    	members:[ecertExemptionsCodeListGridGroup, remarkskeywordsListGridGroup]
+				    }),
+			      
+				    isc.HLayout.create({
+				    	ID:"formTypeBtnBar",
+				    	width:"50%",
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	members:[formTypeBtn]
+				    }),
+
+				    isc.HLayout.create({
+				    	ID:"headingForCertFormGroup",
+				    	width:"100%",
+				    	//height:300,
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	members:[headingForCertForm]
+				    }),
+
+				    isc.VLayout.create({
+				    	ID:"ecertDicContentBtnBar",
+				    	//width: "50%",
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign:"top",
+				    	align:"top",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	members:[]
+			    		//members:[ecertDicContentSelection,  addEcertDicContentBtn, deleteEcertDicContentBtn]
+				    }),
+
+				    isc.VLayout.create({
+				    	ID:"ecertDicItemBtnBar",
+				    	//width: "50%",
+				    	//layoutTopMargin:10,
+				    	VerticalAlignment:"top",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	//members:[ecertDicItemRecordCount, ecertDicItemSpinner, addEcertDicItemBtn, deleteEcertDicItemBtn]
+				    	//members:[addEcertDicItemBtn, deleteEcertDicItemBtn]
+			    		members:[]
+				    }),
+
+				    isc.HLayout.create({
+				    	ID:"ecertDicContentSelectionGroup",
+				    	width:"100%",
+				    	//height:300,
+				    	//layoutTopMargin:10,
+				    	align:"left",
+				    	defaultLayoutAlign: "left",
+				    	showEdges: false,
+				    	membersMargin:1,
+				    	members:[cert_ecertDicContentSelection, ecertDicContentShortSummary]
+				    }),
+
+				    isc.VLayout.create({
+				    	ID:"ecertDicContentPane",
+				    	width: "100%",
+				    	layoutTopMargin:8,
+				    	VerticalAlignment:"top",
+				    	showEdges: false,
+						isGroup:"true",
+						groupTitle:"Reasons of Exemption Cert",
+				    	membersMargin:5,
+				    	//members:[ecertDicItemRecordCount, ecertDicItemSpinner, addEcertDicItemBtn, deleteEcertDicItemBtn]
+				    	//members:[addEcertDicItemBtn, deleteEcertDicItemBtn]
+			    		members:[ecertDicContentSelectionGroup, ecertDicContentForm]
+				    }),
+
+				    isc.HLayout.create({
+				    	ID:"ecertDicContentFormGroup",
+				    	width:"100%",
+				    	//height:300,
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	members:[ecertDicContentPane, ecertDicContentBtnBar]
+			    		//members:[ecertDicContentPane, cert_hiddenEcertDicContentListGrid, ecertDicContentBtnBar]
+			    		//members:[ecertDicContentPane, cert_hiddenEcertDicContentListGrid, min_hiddenEcertDicContentListGrid, ecertDicContentBtnBar]
+				    }),
+
+				    isc.HLayout.create({
+				    	ID:"ecertDicItemFormGroup",
+				    	width:"100%",
+				    	//height:300,
+				    	//layoutTopMargin:10,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	//members:[ecertDicItemForm, ecertDicItemBtnBar]
+			    		members:[cert_hiddenEcertDicItemListGrid, ecertDicItemBtnBar]
+				    }),
+
+				    isc.VLayout.create({
+				    	ID:"RightColumn",
+				    	width: "50%",
+				    	//layoutTopMargin:10,
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	//members:[exemptionCodeListBtnBar, formTypeBtnBar, headingForCertFormGroup, ecertDicContentFormGroup, ecertDicItemFormGroup]
+				    	members:[formTypeBtnBar, headingForCertFormGroup, ecertDicContentFormGroup, ecertDicItemFormGroup]
+				    }),
+
+				    isc.HLayout.create({
+				    	ID:"addExemptionCodePage",
+				    	width:"100%",
+				    	layoutTopMargin:0,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	members:[LeftColumn, RightColumn]
+				    }),
+			      
+			      isc.ButtonToolbar.create({
+				      ID:"SaveEcertExemptionsCodebtn",
+			    	  layoutAlign:"center",
+			          buttons: [
+			              {name:"CompMgmtformSave", title:"Save", width:100,
+			                  click:function(){
+			                	  //if(addCompMgmtForm.getValues().Com_cd){
+			                	  addEcertExemptionsCodeForm.saveData();
+			                	  addEcertExemptionsCodewindow.hide();
+			                	  //}else{
+			                    	  //isc.say("ID is missing", function (value){ });
+			                	  //}
+			                  }
+			              },
+			          ]
+			      }),
+			      isc.VLayout.create({
+			    	  	ID:"addEcertExemptionsCodeBar",
+			    	  	width:300,
+			    	  	height:1,
+				    	layoutTopMargin:10,
+				    	align:"center",
+				    	defaultLayoutAlign:"center",
+				    	showEdges:false,
+				    	membersMargin:5, members:[addExemptionCodePage, SaveEcertExemptionsCodebtn]
+			      })
+			   ]
+		});*/
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+		isc.IButton.create({
+			  ID: "delExemptionsCodebtn",
+			  autoDraw: false,
+			  width:90,
+			  layoutAlign:"center",
+			  title: "Delete",
+			  //--start 00001 ---
+			  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+			  //---end 00001 ==
+			  click : function () {
+				  
+				  if(ecertExemptionsCodeListGrid.anySelected()){
+
+					  isc.ask(promptDeleteMessage_2, function (value){
+						  if (value){
+							  ecertExemptionsCodeDS.removeData(ecertExemptionsCodeListGrid.getSelectedRecord(),
+									  function(dsResponse, data, dsRequest) {
+		              						if (dsResponse.status == 0) {
+		              							isc.say("Successfully Deleted");
+		              						}
+							  		  }
+							  );
+						  }
+					  });
+
+				  }else{
+                	  isc.say("No Exemption/Dispensation is Selected.");
+				  }
+
+			  }
+		});
+
+		isc.IButton.create({
+			  ID: "editExemptionsCodebtn",
+			  autoDraw: false,
+			  width:90,
+			  layoutAlign:"center",
+			  title: "Edit",
+			  //--start 00001 ---
+			  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+			  //---end 00001 ==
+			  click: function () {
+
+				  	MainBtnBar.addMember(copyRecordBtn, 0);
+				  	MainBtnBar.addMember(addExemptionsCodebtn, 1);
+				  	MainBtnBar.addMember(delExemptionsCodebtn, 2);
+				  	MainBtnBar.addMember(saveExemptionsCodebtn, 3);
+				  	MainBtnBar.removeMember(editExemptionsCodebtn);
+
+			        keywordsBtnBar.addMember(addKeywordsBtn, 0);
+			        keywordsBtnBar.addMember(deleteKeywordsBtn, 1);
+
+			        ecertDicContentBtnBar.addMember(addEcertDicContentBtn, 0);
+			        ecertDicContentBtnBar.addMember(deleteEcertDicContentBtn, 1);
+
+			        ecertDicItemBtnBar.addMember(addEcertDicItemBtn, 0);
+			        ecertDicItemBtnBar.addMember(deleteEcertDicItemBtn, 1);
+
+				  	ecertExemptionsCodeListGrid.setCanEdit(true);
+
+				  	if(ecertExemptionsCodeListGrid.anySelected()){
+
+				  		enableAllComponents();
+				  	}
+			  }
+		});
+
+		isc.IButton.create({
+			ID:"saveExemptionsCodebtn",
+			width:90,
+			align:"center",
+			layoutLeftMargin: 150,
+			title:"Save",
+			//---start 00001
+			onControl:"EXEMPT_CODE_WRITE||FSQC_ALL",
+
+			//---end 00001
+
+			click:function(){
+
+				selectedExemptionRecord = ecertExemptionsCodeListGrid.getSelectedRecord();
+		        //var EditedExemptionsCodeRecord = ecertExemptionsCodeListGrid.getAllEditRows();
+				
+		        ecertExemptionsCodeListGrid.endEditing();
+		        ecertExemptionsCodeListGrid.saveAllEdits();
+		        keywordsListGrid.unsort();
+		        keywordsListGrid.endEditing();
+		        keywordsListGrid.saveAllEdits();
+		        cert_hiddenEcertDicItemListGrid.endEditing();
+		        cert_hiddenEcertDicItemListGrid.saveAllEdits();
+		        min_hiddenEcertDicItemListGrid.endEditing();
+		        min_hiddenEcertDicItemListGrid.saveAllEdits();
+/*
+		        exemptionCodeVM.saveData(function (dsResponse, data, dsRequest){
+					  if(dsResponse.status==0){
+						  isc.say(SaveSuccessfully);
+						  //enabledSection(true);
+					  }
+					}
+				);
+*/
+		        //ecertDicContentRecordCount.setContents(EditedExemptionsCodeRecord);
+		        //ecertDicContentForm.setValue("content", ecertDicContentForm.getValue("content"));
+		        //ecertDicContentForm.saveData();
+		        //ecertDicItemForm.saveData();
+		        //ecertDicContentDS.updateData();
+		        //ecertExemptionsCodeDS.updateData(ecertExemptionsCodeListGrid.getSelectedRecord()); //save
+
+		        // Dedupication between Edited record and Edited other parts record to be updated
+		        for (i = 0; i < EditedExemptionsCodeFormRecord.length; i++) {
+			        for (j = 0; j < EditedExemptionsCodeRecord.length; j++) {
+		        		if(EditedExemptionsCodeRecord[j] == EditedExemptionsCodeFormRecord[i]){
+		        			EditedExemptionsCodeRecord.removeAt(j);
+		        		}
+			        }
+	        	}
+/*	        	for (i = 0; i < NewExemptionsCodeRecordrownum.length; i++) {
+		        	for (j = 0; j < EditedExemptionsCodeRecord.length; j++) {
+	        			if(EditedExemptionsCodeRecord[j] == NewExemptionsCodeRecordrownum[i]){
+	        				EditedExemptionsCodeRecord.removeAt(j);
+	        			}
+		        	}
+        		}
+*/	        	
+
+		        console.log("1-");
+		        console.log(NewExemptionsCodeRecordId);
+		        console.log(NewExemptionsCodeRecord);
+		        //console.log("New Record: " + NewExemptionsCodeRecord);
+
+		        // Save New Main Grid Record(s)
+		        for (i = 0; i < NewExemptionsCodeRecord.length; i++) {
+		        	console.log("new status");
+		        	
+		        	//reset id to make DAO add record
+		        	NewExemptionsCodeRecord[i].id = null;
+			        console.log(NewExemptionsCodeRecord);
+
+		        	//Save action
+		        	if(NewExemptionsCodeRecord[i].level_no1 != null || NewExemptionsCodeRecord[i].level_no2 != null || NewExemptionsCodeRecord[i].level_no3 != null || NewExemptionsCodeRecord[i].level_no4 != null || NewExemptionsCodeRecord[i].level_no5 != null){
+			        	ecertExemptionsCodeDS.addData( NewExemptionsCodeRecord[i], function(dsResponse, data, dsRequest){
+			        		ecertExemptionsCodeListGrid.selectRecord(selectedExemptionRecord);
+			        		exemptionCodeUnsaveFlag_mainGrid = false;
+			        		ecertExemptionsCodeListGrid.filterData( ecertExemptionsCodeListGrid.filterEditor.getValuesAsCriteria() ,function(dsResponse, data, dsRequest){
+								//ecertExemptionsCodeListGrid.selectRecord(selectedExemptionRecord);
+								cert_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+								min_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+								cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+								min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+			        		})
+			        	});
+		        	}
+		        }
+
+		        console.log("2-");
+		        console.log(EditedExemptionsCodeRecord);
+
+	        	// Save Edited Main Grid Part
+		        for (i = 0; i < EditedExemptionsCodeRecord.length; i++) {
+		        	console.log("edit status");
+
+		        	//Save action
+		        	if(EditedExemptionsCodeRecord[i]){
+			        	ecertExemptionsCodeDS.updateData( ecertExemptionsCodeListGrid.getRecord(ecertExemptionsCodeListGrid.getRowNum({id:EditedExemptionsCodeRecord[i]})), function(dsResponse, data, dsRequest){
+			        		ecertExemptionsCodeListGrid.selectRecord(selectedExemptionRecord);
+			        		exemptionCodeUnsaveFlag_mainGrid = false;
+			        		console.log(exemptionCodeUnsaveFlag_mainGrid);
+			        		ecertExemptionsCodeListGrid.filterData( ecertExemptionsCodeListGrid.filterEditor.getValuesAsCriteria() ,function(dsResponse, data, dsRequest){
+								//ecertExemptionsCodeListGrid.selectRecord(selectedExemptionRecord);
+								cert_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+								min_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+								cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+								min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+			        		})
+			        	});
+		        	}
+		        }
+
+		        console.log("3-");
+		        console.log(EditedExemptionsCodeFormRecord);
+
+		        // Save Other Edited Parts
+		        for (a = 0; a < EditedExemptionsCodeFormRecord.length; a++) {
+
+		        	//Check keyword part before save
+		        	var editedRecord = ecertExemptionsCodeListGrid.getRecord(ecertExemptionsCodeListGrid.getRowNum({id:EditedExemptionsCodeFormRecord[a]}));
+					var recordnum = ecertExemptionsCodeListGrid.getRowNum( editedRecord );
+		        	var keywordList = getKeywords(editedRecord.keywordList);
+		        	var keywords = "";
+
+		        	//if(keywordsListGrid.isEditingRecord()){
+			        	if(keywordsListGrid.getTotalRows() != keywordList.length){
+
+							keywordList.push( keywordsListGrid.getEditedRecord( keywordsListGrid.getTotalRows()-1 ) );
+
+			        	}else{
+			        		keywordList = [];
+			        		 for (b = 0; b < keywordsListGrid.getTotalRows(); b++){
+			        			 keywordList.add( {keywords:keywordsListGrid.getRecord(b).keywords} );
+			        		 }
+			        	}
+		        	//}
+
+		        	for (j = 0; j < keywordList.length; j++) {
+
+						  	if(j == 0){
+						  		delimiter = "";
+						  	}else{
+						  		delimiter = "~-~";
+						  	}
+
+			        		if( keywordList[j].keywords == null || keywordList[j].keywords == undefined || keywordList[j].keywords == "" ){
+			        			  keywordList.remove(keywordList[j]);
+			        		}else{
+			        			  keywords = keywords.concat(delimiter, keywordList[j].keywords);
+			        		}
+		        	}
+
+		        	editedRecord['keywords'] = keywords;
+					editedRecord['keywordList'] = keywordList;
+
+					//Check Reason part before save
+					if(editedRecord.ecertDicContent != null)
+					{
+						for (k = 0; k < editedRecord.ecertDicContent.length; k++) {
+							if(editedRecord.ecertDicContent[k].id < 0){
+								editedRecord.ecertDicContent[k].id = null;
+							}
+						}
+					}
+					
+
+					//Check Condition part before save
+					if(editedRecord.ecertDicItem != null)
+					{
+						for (l = 0; l < editedRecord.ecertDicItem.length; l++) {
+							if(editedRecord.ecertDicItem[l].id < 0){
+								editedRecord.ecertDicItem[l].id = null;
+							}
+						}
+					}
+		        	console.log(editedRecord);
+
+					//Save action
+			        ecertExemptionsCodeDS.updateData(editedRecord, function(dsResponse, data, dsRequest){
+//		        		ecertExemptionsCodeListGrid.refreshData(function(dsResponse, data, dsRequest){
+							ecertExemptionsCodeListGrid.selectRecord(selectedExemptionRecord);
+			        		exemptionCodeUnsaveFlag_otherParts = false;
+							keywordsListGrid.sort('keywords');
+//							cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+//							min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+//							//cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.refreshData();
+//							//min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.refreshData();
+//		        		})
+		        		ecertExemptionsCodeListGrid.filterData( ecertExemptionsCodeListGrid.filterEditor.getValuesAsCriteria() ,function(dsResponse, data, dsRequest){
+							//ecertExemptionsCodeListGrid.selectRecord(selectedExemptionRecord);
+							cert_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+							min_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+							cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+							min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+							//cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.refreshData();
+							//min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.refreshData();
+		        		})
+			        });
+		        }
+		        
+			  	EditedExemptionsCodeFormRecord = [];
+			  	EditedExemptionsCodeRecord = [];
+			  	NewExemptionsCodeRecordrownum = [];
+			  	NewExemptionsCodeRecord = [];
+			  	cert_ecertDicContentId = -1;
+			  	min_ecertDicContentId = -1;
+			  	cert_ecertdicItemArr = [];
+			  	min_ecertdicItemArr = [];
+
+			  	DeleteEcertDicContentRecord = [];
+			  	tempNew_ecertDicContentId = -1;
+			  	tempNew_ecertDicItemId = -1;
+				isc.say("Save Successfully.");
+				
+			}
+		});
+
+		isc.IButton.create({
+			  ID:"closeExemptionsCodeBtn",
+			  width:90,
+			  align:"center",
+			  layoutLeftMargin:150,
+			  title:"Close",
+			  click:function(){
+
+				  ecertExemptionsCodeListGrid.endEditing();
+				  keywordsListGrid.endEditing();
+			      cert_hiddenEcertDicItemListGrid.endEditing();
+  			      min_hiddenEcertDicItemListGrid.endEditing();
+				  
+				  if(exemptionCodeUnsaveFlag_mainGrid || exemptionCodeUnsaveFlag_otherParts){
+				    		isc.ask("Edited content(s) is/are not saved. Are you sure to close?", function(value){
+				    				  if (value){
+				    					  //var return_data_arr = [];
+				    					  //callback(false, return_data_arr);
+				    					  
+										  resetVariables();
+				    					  ExemptionCodeWindow.hide();
+				    				  }
+				    		});
+				  }else{
+					  resetVariables();
+					  ExemptionCodeWindow.hide();
+				  }
+
+			  }
+		});
+
+		isc.IExportButton.create({
+			  ID:"exportExemptionsCodeBtn",
+			  title: "Export",
+			  width: 120,
+			  layoutAlign:"center",
+			  autoDraw: false,
+			  listGrid: ecertExemptionsCodeListGrid,
+		});
+
+		isc.ListGrid.create({
+			  ID:"keywordsListGrid",
+			  //dataSource:ecertExemptionsCodeDS,
+			  width:"100%",
+			  height:200,
+			  autoFetchData:false,
+			  autoFitFieldWidths:true,
+			  autoConfirmSaveEdits:true,
+			  canEdit:false,
+			  editOnFocus:true,
+			  canSelectCells:true,
+			  autoSaveEdits:true,
+			  saveLocally:true,
+			  saveByCell:true,
+			  editEvent:"click",
+			  showFilterEditor:false,
+			  fields:[
+				  {name:"id", title:"ID", hidden:true},
+			      {name:"keywords", title:"Keywords"},
+			  ],
+			  sortField: 1,
+			  sortDirection: "ascending",
+			  rowClick:function(record, recordNum, fieldNum){
+
+				  if(this.canEdit){
+					  this.startEditing(recordNum, fieldNum);
+				  }
+
+			  },
+			  editComplete:function(rowNum, colNum, newValues, oldValues, editCompletionEvent){
+				  
+				  exemptionCodeUnsaveFlag_otherParts = true;
+				  
+			  },
+			  rowEditorExit:function(editCompletionEvent, record, newValues, rowNum){
+			  //editComplete:function(rowNum, colNum, newValues, oldValues, editCompletionEvent){
+			  //cellChanged:function(record, newValue, oldValue, rowNum, colNum, grid){
+			  //rowHasChanges:function(rowNum){
+
+				  //if(!isEmpty(newValues)){
+				      ecertExemptionsCodeListGrid.endEditing();
+				      ecertExemptionsCodeListGrid.saveAllEdits();
+
+					  var keywords = "";
+					  var keywordList = [];
+					  var delimiter = "";
+					  var keywordsExemptionsCodeRecord = [];
+					  var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+
+					  for (i = 0; i < keywordsListGrid.getTotalRows(); i++) {
+
+						  if(i != 0){
+							  delimiter = "~-~";
+						  }
+
+						  if(i == rowNum){
+
+							  if(typeof newValues.keywords === 'undefined' && record != null){
+
+								  keywordList.push(record.keywords);
+								  keywords = keywords.concat(delimiter, record.keywords);
+
+							  }else{
+
+								  keywordList.push(newValues.keywords);
+								  keywords = keywords.concat(delimiter, newValues.keywords);
+							  }
+
+						  }else{
+							  keywordList.push(keywordsListGrid.getRecord(i).keywords);
+							  keywords = keywords.concat(delimiter, keywordsListGrid.getRecord(i).keywords);
+						  }
+					  }
+
+					  keywordsExemptionsCodeRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+					  keywordsExemptionsCodeRecord['keywords'] = keywords;
+					  keywordsExemptionsCodeRecord['keywordList'] = keywordList;
+
+					  ecertExemptionsCodeListGrid.setEditValues(recordnum, keywordsExemptionsCodeRecord);
+
+					  saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+				  //}
+			  }
+		});
+
+		isc.IButton.create({
+			  ID: "addKeywordsBtn",
+			  autoDraw:false,
+			  width:90,
+			  //showDisabled:true,
+			  layoutAlign:"center",
+			  title: "Add",
+			  //--start 00001 ---
+			  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+			  //---end 00001 ==
+			  click: function(){
+
+				  var allowAddKeywordFlag = true;
+				  var keywordarr = ecertExemptionsCodeListGrid.getEditedRecord(ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord())).keywordList;
+
+				  if(keywordarr != null){
+					  for (i = 0; i < keywordarr.length; i++){
+						  if(keywordarr[i] == undefined || keywordarr[i] == null){
+							  allowAddKeywordFlag = false;
+						  }
+					  }
+				  }
+
+				  if(ecertExemptionsCodeListGrid.anySelected()){
+					  if(allowAddKeywordFlag){
+						  keywordsListGrid.startEditingNew();
+					  }
+				  }else{
+                	  isc.say("No Exemption/Dispensation is Selected.");
+				  }
+			  }
+		});
+
+		isc.IButton.create({
+			  ID: "deleteKeywordsBtn",
+			  autoDraw:false,
+			  width:90,
+			  //Disabled:true,
+			  layoutAlign:"center",
+			  title: "Delete",
+			  //--start 00001 ---
+			  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+			  //---end 00001 ==
+			  click: function(){
+
+				  if(ecertExemptionsCodeListGrid.anySelected()){
+
+					  if(keywordsListGrid.anySelected()){
+						  isc.ask(promptDeleteMessage_2, function (value){
+							  if (value){
+								  var keywords = "";
+								  var keywordList = [];
+								  var keywordsExemptionsCodeRecord = [];
+								  var delimiter = "";
+
+								  var keywordsarr = ecertExemptionsCodeListGrid.getSelectedRecord().keywordList;
+								  var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+
+								  for (i = 0; i < keywordsarr.length; i++) {
+
+									  if(keywordsarr[i] != keywordsListGrid.getSelectedRecord().keywords){
+										  keywordList.push(ecertExemptionsCodeListGrid.getSelectedRecord().keywordList[i]);
+
+										  if(i != 0){
+											  delimiter = "~-~";
+										  }
+
+										  if(i == keywordsarr.length-2){
+											  if(keywordsarr.length ==  keywordsListGrid.getRowNum(keywordsListGrid.getSelectedRecord())+1){
+												  delimiter = "";
+											  }else{
+												  delimiter = "~-~";
+											  }
+										  }else if(i == keywordsarr.length-1){
+											  delimiter = "";
+										  }else{
+											  delimiter = "~-~";
+										  }
+									  }
+								  }
+								  for (i = 0; i < keywordList.length; i++) {
+									  if(i != 0){
+										  delimiter = "~-~";
+									  }
+									  keywords = keywords.concat(delimiter, keywordList[i]);
+								  }
+
+								  keywordsExemptionsCodeRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+								  keywordsExemptionsCodeRecord['keywords'] = keywords;
+								  keywordsExemptionsCodeRecord['keywordList'] = keywordList;
+
+								  ecertExemptionsCodeListGrid.setEditValues(recordnum, keywordsExemptionsCodeRecord);
+
+								  saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+								  keywordsListGrid.removeSelectedData();
+
+								  ecertExemptionsCodeListGrid.endEditing();
+								  ecertExemptionsCodeListGrid.saveAllEdits();
+							  }
+						  })
+
+					  }else{
+						  isc.say("No keyword is Selected.");
+					  }
+
+				  }else{
+                	  isc.say("No Exemption/Dispensation is Selected.");
+				  }
+
+			  }
+		});
+
+		isc.DynamicForm.create({
+			  ID: "remarksForm",
+		      //valuesManager:valueMan,
+			  dataSource: ecertExemptionsCodeDS,
+			  width:"100%",
+			  height:230,
+			  autoFetchData: false,
+		      titleWidth:"100%",
+		      disabled:true,
+		      //canEdit:false,
+			  fields:[
+			      {name:"remarks", title:"Remarks", type: "textArea", showTitle:false, width:"100%", selectOnFocus:true, height:"100%"}
+			  ],
+			  itemChanged:function(){
+				  
+				  exemptionCodeUnsaveFlag_otherParts = true;
+
+	    		  remarksForm.completeEditing();
+
+			      ecertExemptionsCodeListGrid.endEditing();
+			      ecertExemptionsCodeListGrid.saveAllEdits();
+
+				  var remarksExemptionsCodeRecord = {};
+				  remarksExemptionsCodeRecord = ecertExemptionsCodeListGrid.getSelectedRecord();
+				  remarksExemptionsCodeRecord['remarks'] = remarksForm.getValue("remarks");
+
+				  var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+
+				  ecertExemptionsCodeListGrid.setEditValues(recordnum, remarksExemptionsCodeRecord);
+
+				  saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+	    	  },
+		});
+
+	    isc.HLayout.create({
+	    	ID:"queryListBtnBar",
+	    	width:"100%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign:"center",
+	    	align:"center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[ecertExemptionsCodeSearch]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"exemptionCodeListBtnBar",
+	    	width:"100%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign:"center",
+	    	align:"center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[copyRecordBtn, addExemptionsCodebtn, delExemptionsCodebtn, saveExemptionsCodebtn, exportExemptionsCodeBtn, closeExemptionsCodeBtn]
+	    });
+	    isc.HLayout.create({
+	    	ID:"ecertExemptionsCodeListGridGroup",
+	    	width:"100%",
+	    	layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	//showEdges: true,
+	    	isGroup: true,
+	    	groupTitle: "Exemption Code",
+	    	membersMargin:50,
+	    	members:[ecertExemptionsCodeListGrid]
+	    });
+	    isc.HLayout.create({
+	    	ID:"remarksListGridGroup",
+	    	width:"100%",
+	    	layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	//showEdges: true,
+	    	isGroup: true,
+	    	groupTitle: "Remarks",
+	    	membersMargin:0,
+	    	members:[remarksForm]
+	    });
+	    isc.HLayout.create({
+	    	ID:"keywordsListGridGroup",
+	    	width:"100%",
+	    	//valuesManager:valueMan,
+	    	layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	//showEdges: true,
+	    	isGroup: true,
+	    	groupTitle: "Keywords",
+	    	membersMargin:50,
+	    	members:[keywordsListGrid]
+	    });
+		isc.DynamicForm.create({
+		    ID: "keyworsDummy",
+		    width:"1",
+		    align:"left",
+		    items:[
+		        {type: "SpacerItem", width:"*"},
+		    ]
+		});
+	    isc.HLayout.create({
+	    	ID:"keywordsBtnBar",
+	    	width:"100%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	align:"center",
+	    	//showEdges: true,
+	    	membersMargin:0,
+	    	//members:[]
+	    	members:[keyworsDummy]
+	    });
+	    isc.VLayout.create({
+	    	ID:"keywordsGroup",
+	    	width:"100%",
+	    	//layoutTopMargin:10,
+	    	align:"top",
+	    	defaultLayoutAlign: "top",
+	    	//showEdges: true,
+	    	membersMargin:5,
+	    	members:[keywordsListGridGroup, keywordsBtnBar]
+	    });
+	    isc.HLayout.create({
+	    	ID:"remarkskeywordsListGridGroup",
+	    	width:"100%",
+	    	layoutTopMargin:0,
+	    	defaultLayoutAlign: "center",
+	    	//showEdges: true,
+	    	membersMargin:10,
+	    	members:[remarksListGridGroup, keywordsGroup]
+	    });
+	    isc.VLayout.create({
+	    	ID:"LeftColumn",
+	    	width:"50%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	//members:[queryListBtnBar, ecertExemptionsCodeListGridGroup, remarkskeywordsListGridGroup]
+	    	members:[ecertExemptionsCodeListGridGroup, remarkskeywordsListGridGroup]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"MainBtnBar",
+	    	width:"100%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign:"left",
+	    	align:"right",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[editExemptionsCodebtn, exportExemptionsCodeBtn, closeExemptionsCodeBtn]
+	    	//members:[copyRecordBtn, addExemptionsCodebtn, delExemptionsCodebtn, saveExemptionsCodebtn, exportExemptionsCodeBtn]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"rightBtnBar",
+	    	width:200,
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign:"right",
+	    	align:"right",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[closeExemptionsCodeBtn]
+	    });
+
+	    if(exemptionTypes != null){
+	    	rightBtnBar.addMember(selectExemptionsCodebtn, 0);
+	    }
+
+	    isc.HLayout.create({
+	    	ID:"ExemptionCodeUpperPage",
+	    	width:"100%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign:"center",
+	    	align:"center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[queryListBtnBar, MainBtnBar, rightBtnBar]
+	    });
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        isc.DynamicForm.create({
+        	ID:"formTypeBtn",
+        	width:"100%",
+        	items:[
+        	       {name:"form_type",
+        	    	type:"radioGroup",
+        	    	showTitle:false,
+        	    	canEdit:true,
+        	    	wrap:false,
+        	    	vertical:false,
+        	        valueMap:["Exemption Cert","Minute"],
+        	        defaultValue:"Exemption Cert",
+        	        change:function(form, item, value){
+
+        	        	
+        	        		var formType = "";
+        	       			var listgrid = "";
+        	        		if(value == "Exemption Cert"){
+
+        	        			formType = "Exemption Certificate";
+        	        			headingForCertForm.setGroupTitle("Heading for Cert");
+
+        	        			min_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+            	        		min_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+
+        	                	ecertDicContentSelectionGroup.removeMember(min_ecertDicContentSelection);
+        	                	ecertDicContentSelectionGroup.addMember(cert_ecertDicContentSelection, 0);
+
+        	        			ecertDicItemFormGroup.removeMember(min_hiddenEcertDicItemListGrid);
+        	        			ecertDicItemFormGroup.addMember(cert_hiddenEcertDicItemListGrid, 0);
+        	        			itemlistgrid = cert_hiddenEcertDicItemListGrid;
+
+        	        		}else if(value == "Minute"){
+
+        	        			formType = "Minute";
+        	        			headingForCertForm.setGroupTitle("Heading for Min");
+
+        	        			cert_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+            	        		cert_ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setData([]);
+
+        	        			ecertDicContentSelectionGroup.removeMember(cert_ecertDicContentSelection);
+        	                	ecertDicContentSelectionGroup.addMember(min_ecertDicContentSelection, 0);
+
+        	        			ecertDicItemFormGroup.removeMember(cert_hiddenEcertDicItemListGrid);
+        	        			ecertDicItemFormGroup.addMember(min_hiddenEcertDicItemListGrid, 0);
+        	        			itemlistgrid = min_hiddenEcertDicItemListGrid;
+        	        		}
+
+        	        		if(ecertExemptionsCodeListGrid.anySelected()){
+
+        	        			var record = ecertExemptionsCodeListGrid.getEditedRecord(ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord()));
+        	        			//var record = ecertExemptionsCodeListGrid.getSelectedRecord();
+
+        	        			headingForCertForm.clearValues();
+        	        			if(value == "Exemption Cert" && record.subheading != null){
+            	        				headingForCertForm.setValue("subheading",record.subheading);
+        	        			}else if(value == "Minute" && record.exemption_for != null){
+            	        				headingForCertForm.setValue("subheading",record.exemption_for);
+        	        			}
+
+        	        			resetExemptionReasonsCondition(false);
+
+        	  		          	if(record.ecertDicContent.length != 0){
+        	  		          		
+        	  		          		setExemptionReasons(record.ecertDicContent, formType, cert_hiddenEcertDicContentListGrid, min_hiddenEcertDicContentListGrid, ecertDicContentForm, false);
+            	                	cert_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+            	                	min_ecertDicContentSelection.getField('ecertDicContentCombobox').makePickList();
+            	                	
+        	  		          	}
+
+        	  		          	if(record.ecertDicItem.length != 0){
+        	  		          		setExemptionCondition(record.ecertDicItem, formType, cert_hiddenEcertDicItemListGrid, min_hiddenEcertDicItemListGrid, false);
+        	  		          	}else{
+        	  		          		itemlistgrid.setData([]);
+        	  		          	}
+
+/*        	  		          	if(exemptionTypes != null && listgrid.getTotalRows() > 0 ){
+        	  		          		listgrid.selectAllRecords();
+        	  		          	}
+*/
+        	        		}
+        	        	 }
+        	       }
+			]
+        });
+
+        isc.DynamicForm.create({
+	        ID:"headingForCertForm",
+	        dataSource:"ecertExemptionsCodeDS",
+		    //valuesManager:valueMan,
+			width:"100%",
+			height:90,
+			autoFetchData: false,
+			isGroup:"true",
+			groupTitle:"Heading for Cert",
+	        titleWidth:"100%",
+	        disabled:true,
+	        //canEdit:false,
+	        //autoFocus: true,
+	        items:[
+	               {
+	                   type: "textArea",
+	                   name: "subheading",
+	                   title: "",
+	                   width:"100%",
+	                   height:"100%",
+	                   selectOnFocus:true,
+	                   wrapTitle:false,
+	                   showTitle:false,
+	               },
+	        ],
+	        itemChanged:function(){
+	        	
+	        	exemptionCodeUnsaveFlag_otherParts = true;
+				  
+	        	headingForCertForm.completeEditing();
+
+	        	ecertExemptionsCodeListGrid.endEditing();
+	        	ecertExemptionsCodeListGrid.saveAllEdits();
+
+	        	var formType = formTypeBtn.getValue('form_type');
+
+	        	var certExemptionsCodeRecord = {};
+	        	certExemptionsCodeRecord = ecertExemptionsCodeListGrid.getSelectedRecord();
+
+	        	if(formType == "Exemption Cert"){
+	        		certExemptionsCodeRecord['subheading'] = headingForCertForm.getValue("subheading");
+		        	//certExemptionsCodeRecord['exemption_for'] = ecertExemptionsCodeListGrid.getSelectedRecord().exemption_for;
+	        	}else if(formType == "Minute"){
+	        		certExemptionsCodeRecord['exemption_for'] = headingForCertForm.getValue("subheading");
+	        		//certExemptionsCodeRecord['subheading'] = ecertExemptionsCodeListGrid.getSelectedRecord().subheading;
+	        	}
+
+	        	var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+	        	ecertExemptionsCodeListGrid.setEditValues(recordnum, certExemptionsCodeRecord);
+
+	        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+	        },
+	    });
+
+	    isc.DynamicForm.create({
+	        ID:"ecertDicContentForm",
+	        //dataSource:"ecertDicContentDS",
+			width:"100%",
+			height:260,
+			//isGroup:"true",
+			//groupTitle:"Reasons of Exemption Cert",
+			titleWidth:"100%",
+			disabled:true,
+			//canEdit:false,
+			showOldValueInHover:true,
+			storeDisplayValues:true,
+	        autoFocus: true,
+	        items:[
+	        	   {name:"id", title:"ID", hidden:true},
+	               {name:"ex_code_id", title:"Exemption Code ID", hidden:true},
+	               {name:"exemption_type", title:"Exemption Type", hidden:true},
+	               {name:"form_type", title:"Form Type", hidden:true},
+	               {
+	                   type: "textArea",
+	                   name: "content",
+	                   title: "Content",
+	                   width:"100%",
+	                   height:"100%",
+	                   selectOnFocus:true,
+	                   wrapTitle:false,
+	                   showTitle:false,
+	               }
+	        ],
+	        itemChanged :function(item, newValue){
+
+	        	exemptionCodeUnsaveFlag_otherParts = true;
+
+	        	ecertDicContentForm.completeEditing();
+
+	        	var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+	        	var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+				var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+	        	var contentRecord = [];
+	        	contentRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+	        	if(diccontentlistgrid.anySelected()){
+	        	//if(diccontentlistgrid.getSelectedRecord().id > 0){
+
+	        		//edit Record
+		            for (i = 0; i < contentRecord.ecertDicContent.length; i++) {
+		            	if(contentRecord.ecertDicContent[i].id == diccontentlistgrid.getSelectedRecord().id){
+		            		contentRecord.ecertDicContent[i].content = ecertDicContentForm.getValue('content');
+		            	}
+		            }
+
+		            diccontentlistgrid.setEditValue( diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord()), 0, newValue);
+		            //diccontentselection.getField('ecertDicContentCombobox').pickList.startEditing(diccontentselection.getField('ecertDicContentCombobox').pickList.getRowNum(diccontentselection.getField('ecertDicContentCombobox').getSelectedRecord()), 2);
+		            //diccontentselection.getField('ecertDicContentCombobox').pickList.setEditValue(diccontentselection.getField('ecertDicContentCombobox').pickList.getRowNum(diccontentselection.getField('ecertDicContentCombobox').getSelectedRecord()), 2, newValue);
+
+		        	//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.startEditing(0,2);
+		        	//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.setEditValue(0, 2, newValue);
+
+		        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+		        	//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.endEditing();
+		        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+	        	}else{
+
+	        		//New Record
+
+					var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+					var newContentRowNo = diccontentlistgrid.getTotalRows() - 1;
+					var arrNo = contentRecord.ecertDicContent.length - 1;
+
+			        //for (i = 0; i < contentRecord.ecertDicContent.length; i++) {
+			            //if(contentRecord.ecertDicContent[i].id == null){
+			            	contentRecord.ecertDicContent[arrNo].content = newValue;
+			            //}
+			        //}
+
+			        diccontentlistgrid.setEditValue( newContentRowNo, 0, newValue);
+			        diccontentselection.getField('ecertDicContentCombobox').pickList.setEditValue(newContentRowNo, 2, newValue);
+
+		        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+
+		        	diccontentselection.getField('ecertDicContentCombobox').pickList.endEditing();
+		        	//diccontentlistgrid.endEditing();
+		        	//diccontentlistgrid.selectRecord(NewContentRowNo);
+
+		        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+	        	}
+	        },
+	    });
+
+	    isc.ListGrid.create({
+	    	  ID:"cert_hiddenEcertDicContentListGrid",
+	    	  //alternateRecordStyles:true,
+	    	  width:"100%",
+	    	  height:270,
+	    	  dataSource: ecertDicContentDS,
+	    	  //canSelectRecord:true,
+			  autoFetchData: false,
+			  autoFitFieldWidths:true,
+			  canEdit: true,
+			  editOnFocus: true,
+			  canSelectCells: true,
+			  canRemoveRecords:false,
+			  autoSaveEdits: true,
+			  saveLocally: true,
+			  saveByCell: true,
+			  editEvent: "click",
+			  showFilterEditor:false,
+			  showAllRecords:true,
+	    	  fields:[
+	               {name:"content", title:"Content", hidden:false},
+   	    		   {name:"id", title:"ID", hidden:false},
+	               {name:"ex_code_id", title:"Exemption Code ID", hidden:true},
+	               {name:"exemption_type", title:"Exemption Type", hidden:true},
+	               {name:"form_type", title:"Form Type", hidden:true},
+	               {name:"short_summary", title:"short summary", hidden:false},
+	               //{name:"ecertExemptionsCode", hidden:false},
+	    	  ]
+	    });
+
+	    isc.ListGrid.create({
+	    	  ID:"min_hiddenEcertDicContentListGrid",
+	    	  //alternateRecordStyles:true,
+	    	  width:"100%",
+	    	  height:270,
+	    	  overflow:"auto",
+	    	  dataSource: ecertDicContentDS,
+	    	  autoFetchData: false,
+	    	  autoFitFieldWidths:true,
+	    	  canSelectCells: true,
+	    	  autoSaveEdits: true,
+	    	  saveLocally: true,
+	    	  saveByCell: true,
+	    	  canRemoveRecords:false,
+	    	  //editEvent: "doubleClick",
+	    	  editEvent: "click",
+	    	  fields:[
+	               {name:"content", title:"Content", hidden:false},
+ 	    		   {name:"id", title:"ID", hidden:false},
+	               {name:"ex_code_id", title:"Exemption Code ID", hidden:true},
+	               {name:"exemption_type", title:"Exemption Type", hidden:true},
+	               {name:"form_type", title:"Form Type", hidden:true},
+	               {name:"short_summary", title:"short summary", hidden:false},
+	    	  ]
+	    });
+
+	    isc.DynamicForm.create({
+	    	ID:"cert_ecertDicContentSelection",
+	    	width:65,
+	        fields: [
+	            {name:"ecertDicContentCombobox", title:"", showTitle:false, type:"ComboBoxItem", canEdit:true,
+	            	optionDataSource:"ecertDicContentDS", valueField:"id",
+	            	width:65,
+	            	pickListWidth:500,
+	            	//autoFetchData:false,
+	            	displayField:"id",
+	            	addUnknownValues:true,
+                	autoOpenTree: true,
+	            	hideEmptyPickList:true,
+	                pickListFields:[
+	                                {name:'id', width:50},
+	                                {name:"ex_code_id", title:"Exemption Code ID",hidden:true},
+	                                {name:"exemption_type", title:"Exemption Type", hidden:true},
+	                                {name:"form_type", title:"Form Type", hidden:true},
+	                                {name:'short_summary', width:250},
+	                                {name:'content', width:400}
+	                               ],
+
+	            	//pickListPlacement: "fillScreen",
+	            	//pickListCriteria:{ex_code_id:"344",operator:"equals"},
+	                pickListProperties: {
+	                	canEdit: true,
+	                	canSelect: true,
+	                	//editOnFocus: true,
+	                	//canSelectCells: true,
+	                	//editEvent: "click",
+	                	autoOpenTree: true,
+	                	autoConfirmSaveEdits: true,
+	                	autoSaveEdits: false,
+	      			  	saveLocally: true,
+	      			  	saveByCell: false,
+	                    canHover: true,
+	                    showHover: true,
+	                    cellHoverHTML : function (record) {
+	                        return record.content ? record.content : "[no content]";
+	                    },
+		                formatCellValue : function (value, record, field, viewer) {
+
+	                		var removeSymbol = "";
+
+		                	for (i = 0; i < DeleteEcertDicContentRecord.length; i++) {
+			                	if(record.id == DeleteEcertDicContentRecord[i]){
+			                		removeSymbol = "<del>";
+			                	}
+		                	}
+
+		                	if(viewer == 0){
+	                			if(record.id > 0){
+		                			return removeSymbol + record.id ;
+	                			}
+	                			//if(value == undefined || value == null){
+	                			if(record.id < 0){
+		                			return removeSymbol + "New";
+	                			}
+	                		}
+
+	                		if(viewer == 1){
+	                			if(value == undefined || value == null){
+		                			return " ";
+	                			}else{
+	                				return removeSymbol + record.short_summary;
+	                			}
+	                		}
+
+	                		if(viewer == 2){
+	                			if(value == undefined || value == null){
+		                			return " ";
+	                			}else{
+			                		return removeSymbol + record.content ;
+		                		}
+	                		}
+		                 },
+
+			             recordClick: function(viewer, record, recordNum, field, fieldNum, value, rawValue){
+
+			            	 console.log(record);
+
+			                	var changeFlag = true;
+		                		var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+		                		var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+
+			                	if(record != null){
+			                		//Select Old Record
+				                	if(DeleteEcertDicContentRecord.length > 0){
+					                	for (i = 0; i < DeleteEcertDicContentRecord.length; i++){
+						                	if(record.id == DeleteEcertDicContentRecord[i]){
+						                		changeFlag = false;
+						                	}
+					                	}
+				                	}
+
+				                	if(changeFlag){
+
+			        	      	  		for (i = 0; i < diccontentlistgrid.getTotalRows(); i++){
+			        	      	  			if(diccontentlistgrid.getRecord(i) != null){
+				        	      	  			if(record.id == diccontentlistgrid.getRecord(i).id ){
+				        	      	  				diccontentlistgrid.selectSingleRecord(i);
+				        	      	  			}
+			        	      	  			}
+			        	      	  		}
+			        	      	  		//cert_hiddenEcertDicContentListGrid.selectSingleRecord(this.getSelectedRecord());
+			    			    		//cert_hiddenEcertDicContentListGrid.selectSingleRecord(ecertDicContentSelection.getField('ecertDicContentCombobox').getSelectedRecord());
+
+			    			    		//if( !isEmpty(diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord()))) ){
+
+			    			    			diccontentselection.getField('ecertDicContentCombobox').setValue( diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).id );
+			                	      	    ecertDicContentForm.setValue("content", diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).content);
+			                	      	    ecertDicContentShortSummary.getField('short_summary').setValue( diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).short_summary );
+			    			    		//}else{
+
+			    			    			//diccontentselection.getField('ecertDicContentCombobox').setValue( diccontentlistgrid.getSelectedRecord().id );
+			    			    			//ecertDicContentForm.setValue("content", diccontentlistgrid.getSelectedRecord().content);
+			                	      	    //ecertDicContentShortSummary.getField('short_summary').setValue( diccontentlistgrid.getSelectedRecord().short_summary );
+			    			    		//}
+				    	      	  		//ecertDicContentForm.setValue("content", ecertDicContentSelection.getField('ecertDicContentCombobox').getSelectedRecord().content);
+
+				                	}else{
+
+							        	diccontentlistgrid.deselectAllRecords();
+							        	ecertDicContentShortSummary.clearValues();
+							  			ecertDicContentForm.clearValues();
+
+				                	}
+			                	}else{
+			                		//Select New Record
+
+		        	      	  		for (i = 0; i < diccontentlistgrid.getTotalRows(); i++){
+		        	      	  			if(diccontentlistgrid.getEditedRecord(i).id == diccontentselection.getField('ecertDicContentCombobox').pickList.getEditedRecord(recordNum).id){
+
+		        	      	  				diccontentlistgrid.selectSingleRecord(i);
+		        	      	  				diccontentselection.getField('ecertDicContentCombobox').setDefaultValue();
+		        	      	  				diccontentselection.getField('ecertDicContentCombobox').clearValue();
+				        	      	  		ecertDicContentForm.setValue("content", diccontentlistgrid.getEditedRecord(i).content);
+				        	      	  		ecertDicContentShortSummary.getField('short_summary').setValue( diccontentlistgrid.getEditedRecord(i).short_summary );
+		        	      	  			}
+		        	      	  		}
+			                	}
+			                	diccontentselection.getField('ecertDicContentCombobox').pickList.hide();
+
+			             },
+	                },
+
+	                getPickListFilterCriteria: function() {
+	        	  		if(ecertExemptionsCodeListGrid.anySelected()){
+		                	if(formTypeBtn.getValue('form_type') == "Exemption Cert"){
+		                		return {ex_code_id:ecertExemptionsCodeListGrid.getSelectedRecord().id, form_type:"Exemption Certificate"};
+		                	}else if(formTypeBtn.getValue('form_type') == "Minute"){
+		                		return {ex_code_id:ecertExemptionsCodeListGrid.getSelectedRecord().id, form_type:"Minute"};
+		                	}
+	        	  		}else{
+	        	  			return {ex_code_id:"-1"};
+	        	  		}
+
+	                },
+	                click: function(){
+
+	                	var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+	                	var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+	                	
+	                	if(!ecertExemptionsCodeListGrid.anySelected()){
+	                		isc.say("No Exemption/Dispensation is Selected.");
+	                	}else{
+	                		diccontentselection.getField('ecertDicContentCombobox').makePickList();
+	                		//diccontentselection.getField('ecertDicContentCombobox').pickList.setData([]);
+	                			                		
+	                		for (h = 0; h < diccontentlistgrid.getTotalRows(); h++){
+	                			if(diccontentlistgrid.getEditedRecord(h).id < 0){
+	    	                		diccontentselection.getField('ecertDicContentCombobox').pickList.setEditValues(h, diccontentlistgrid.getEditedRecord(h));	                				
+	                			}
+	                		}
+	                		
+	                		diccontentselection.getField('ecertDicContentCombobox').pickList.endEditing();
+	                		diccontentselection.getField('ecertDicContentCombobox').pickList.show();
+	                	}
+	                },
+	                //headerMenuButtonClick: function(){
+	                //headerBarContextClick: function(){
+	                	//var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+	                	//diccontentselection.getField('ecertDicContentCombobox').pickList.show();
+	                //}
+
+	                //ecertDicContentSelection.getField('ecertDicContentCombobox').setValueMap([])
+/*	                selectValue: function() {
+
+	                	if(formTypeBtn.getValue('form_type') == "Exemption Cert"){
+	                		return cert_hiddenEcertDicContentListGrid.getSelectedRecord();
+	                	}else if(formTypeBtn.getValue('form_type') == "Minute"){
+	                		return min_hiddenEcertDicContentListGrid.getSelectedRecord();
+	                	}
+
+	                },
+	                changed: function(value){
+
+        	        }
+	                click: function(){
+	                	ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.endEditing();
+	                },
+*/
+	            }
+	        ],
+	    });
+	    isc.DynamicForm.create({
+	    	ID:"min_ecertDicContentSelection",
+	    	width:65,
+	        fields: [
+	            {name:"ecertDicContentCombobox", title:"", showTitle:false, type:"ComboBoxItem", canEdit:true,
+	            	optionDataSource:"ecertDicContentDS", valueField:"id",
+	            	width:65,
+	            	pickListWidth:500,
+	            	//autoFetchData:false,
+	            	displayField:"id",
+	            	addUnknownValues:true,
+                	autoOpenTree: true,
+	            	hideEmptyPickList:true,
+	                pickListFields:[
+	                                {name:'id', width:50},
+	                                {name:"ex_code_id", title:"Exemption Code ID",hidden:true},
+	                                {name:"exemption_type", title:"Exemption Type", hidden:true},
+	                                {name:"form_type", title:"Form Type", hidden:true},
+	                                {name:'short_summary', width:250},
+	                                {name:'content', width:400}
+	                               ],
+
+	            	//pickListPlacement: "fillScreen",
+	            	//pickListCriteria:{ex_code_id:"344",operator:"equals"},
+	                pickListProperties: {
+	                	canEdit: true,
+	                	sortField:1,
+	                	sortDirection: "ascending",
+	                	canSelect: true,
+	                	//editOnFocus: true,
+	                	//canSelectCells: true,
+	                	//editEvent: "click",
+	                	autoOpenTree: true,
+	                	autoConfirmSaveEdits: true,
+	                	autoSaveEdits: false,
+	      			  	saveLocally: true,
+	      			  	saveByCell: false,
+	                    canHover: true,
+	                    showHover: true,
+	                    cellHoverHTML : function (record) {
+	                        return record.content ? record.content : "[no content]";
+	                    },
+		                formatCellValue : function (value, record, field, viewer) {
+
+	                		var removeSymbol = "";
+		                	for (i = 0; i < DeleteEcertDicContentRecord.length; i++) {
+			                	if(record.id == DeleteEcertDicContentRecord[i]){
+			                		removeSymbol = "<del>";
+			                	}
+		                	}
+
+	                		if(viewer == 0){
+	                			if(record.id > 0){
+		                			return removeSymbol + record.id ;
+	                			}
+	                			//if(value == undefined || value == null){
+	                			if(record.id < 0){
+		                			return "New";
+	                			}
+	                		}
+
+	                		if(viewer == 1){
+	                			if(value == undefined || value == null){
+		                			return " ";
+	                			}else{
+	                				return removeSymbol + record.short_summary;
+	                			}
+	                		}
+
+	                		if(viewer == 2){
+	                			if(value == undefined || value == null){
+		                			return " ";
+	                			}else{
+			                		return removeSymbol + record.content ;
+		                		}
+	                		}
+		                 },
+
+			             recordClick: function(viewer, record, recordNum, field, fieldNum, value, rawValue){
+
+			            	 console.log(record);
+
+			                	var changeFlag = true;
+		                		var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+		                		var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+
+			                	if(record != null){
+			                		//Select Old Record
+				                	if(DeleteEcertDicContentRecord.length > 0){
+					                	for (i = 0; i < DeleteEcertDicContentRecord.length; i++){
+						                	if(record.id == DeleteEcertDicContentRecord[i]){
+						                		changeFlag = false;
+						                	}
+					                	}
+				                	}
+
+				                	if(changeFlag){
+
+			        	      	  		for (i = 0; i < diccontentlistgrid.getTotalRows(); i++){
+			        	      	  			if(diccontentlistgrid.getRecord(i) != null){
+				        	      	  			if(record.id == diccontentlistgrid.getRecord(i).id ){
+				        	      	  				diccontentlistgrid.selectSingleRecord(i);
+				        	      	  			}
+			        	      	  			}
+			        	      	  		}
+			        	      	  		//cert_hiddenEcertDicContentListGrid.selectSingleRecord(this.getSelectedRecord());
+			    			    		//cert_hiddenEcertDicContentListGrid.selectSingleRecord(ecertDicContentSelection.getField('ecertDicContentCombobox').getSelectedRecord());
+
+			    			    		//if(diccontentlistgrid.getEditedRecord(diccontentlistgrid.getSelectedRecord()).content != undefined){
+
+			    			    			diccontentselection.getField('ecertDicContentCombobox').setValue( diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).id );
+			                	      	    ecertDicContentForm.setValue("content", diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).content);
+			                	      	    ecertDicContentShortSummary.getField('short_summary').setValue( diccontentlistgrid.getEditedRecord(diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).short_summary );
+			    			    		//}else{
+
+			    			    			//diccontentselection.getField('ecertDicContentCombobox').setValue( diccontentlistgrid.getSelectedRecord().id );
+			    			    			//ecertDicContentForm.setValue("content", diccontentlistgrid.getSelectedRecord().content);
+			                	      	    //ecertDicContentShortSummary.getField('short_summary').setValue( diccontentlistgrid.getSelectedRecord().short_summary );
+			    			    		//}
+				    	      	  		//ecertDicContentForm.setValue("content", ecertDicContentSelection.getField('ecertDicContentCombobox').getSelectedRecord().content);
+				                	}else{
+
+							        	diccontentlistgrid.deselectAllRecords();
+							        	ecertDicContentShortSummary.clearValues();
+							  			ecertDicContentForm.clearValues();
+
+				                	}
+			                	}else{
+			                		//Select New Record
+
+		        	      	  		for (i = 0; i < diccontentlistgrid.getTotalRows(); i++){
+		        	      	  			if(diccontentlistgrid.getEditedRecord(i).id == diccontentselection.getField('ecertDicContentCombobox').pickList.getEditedRecord(recordNum).id){
+
+		        	      	  				diccontentlistgrid.selectSingleRecord(i);
+		        	      	  				diccontentselection.getField('ecertDicContentCombobox').setDefaultValue();
+		        	      	  				diccontentselection.getField('ecertDicContentCombobox').clearValue();
+				        	      	  		ecertDicContentForm.setValue("content", diccontentlistgrid.getEditedRecord(i).content);
+				        	      	  		ecertDicContentShortSummary.getField('short_summary').setValue( diccontentlistgrid.getEditedRecord(i).short_summary );
+		        	      	  			}
+		        	      	  		}
+			                	}
+			                	diccontentselection.getField('ecertDicContentCombobox').pickList.hide();
+
+			             },
+	                },
+
+	                getPickListFilterCriteria: function() {
+
+	        	  		if(ecertExemptionsCodeListGrid.anySelected()){
+		                	if(formTypeBtn.getValue('form_type') == "Exemption Cert"){
+		                		return {ex_code_id:ecertExemptionsCodeListGrid.getSelectedRecord().id, form_type:"Exemption Certificate"};
+		                	}else if(formTypeBtn.getValue('form_type') == "Minute"){
+		                		return {ex_code_id:ecertExemptionsCodeListGrid.getSelectedRecord().id, form_type:"Minute"};
+		                	}
+	        	  		}else{
+	        	  			return {ex_code_id:"-1"};
+	        	  		}
+
+	                },
+	                click: function(){
+
+	                	var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+	                	var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+
+	                	if(!ecertExemptionsCodeListGrid.anySelected()){
+	                		isc.say("No Exemption/Dispensation is Selected.");
+	                	}else{
+	                		diccontentselection.getField('ecertDicContentCombobox').makePickList();
+	                		
+	                		for (h = 0; h < diccontentlistgrid.getTotalRows(); h++){
+	                			if(diccontentlistgrid.getEditedRecord(h).id < 0){
+	    	                		diccontentselection.getField('ecertDicContentCombobox').pickList.setEditValues(h, diccontentlistgrid.getEditedRecord(h));	                				
+	                			}
+	                		}
+	                		
+	                		diccontentselection.getField('ecertDicContentCombobox').pickList.endEditing();
+	                		diccontentselection.getField('ecertDicContentCombobox').pickList.show();
+	                	}
+	                }
+
+	                //ecertDicContentSelection.getField('ecertDicContentCombobox').setValueMap([])
+/*	                selectValue: function() {
+
+	                	if(formTypeBtn.getValue('form_type') == "Exemption Cert"){
+	                		return cert_hiddenEcertDicContentListGrid.getSelectedRecord();
+	                	}else if(formTypeBtn.getValue('form_type') == "Minute"){
+	                		return min_hiddenEcertDicContentListGrid.getSelectedRecord();
+	                	}
+
+	                },
+	                changed: function(value){
+
+        	        }
+	                click: function(){
+	                	ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.endEditing();
+	                },
+*/
+	            }
+	        ],
+	    });
+	    isc.DynamicForm.create({
+	    	ID:"ecertDicContentShortSummary",
+	    	width:"300",
+	    	disabled:true,
+	    	//canEdit: false,
+	        fields: [
+		               {name: "short_summary", title: "Short Summary", width:"300", height:"21", showTitle:false}
+	        ],
+	        itemChanged :function(item, newValue){
+	        	
+	        	exemptionCodeUnsaveFlag_otherParts = true;
+
+	        	ecertDicContentForm.completeEditing();
+
+				var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+				var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+				var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+	        	var contentRecord = [];
+	        	contentRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+	        	if(diccontentlistgrid.anySelected()){
+	        	//if(diccontentlistgrid.getSelectedRecord().id > 0){
+
+	        		//edit Cert or Minute Record
+		            for (i = 0; i < contentRecord.ecertDicContent.length; i++) {
+		            	if(contentRecord.ecertDicContent[i].id == diccontentlistgrid.getSelectedRecord().id){
+		            		contentRecord.ecertDicContent[i].short_summary = ecertDicContentShortSummary.getValue('short_summary');
+		            	}
+		            }
+
+		            diccontentlistgrid.setEditValue( diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord()), 2, newValue);
+		            //diccontentselection.getField('ecertDicContentCombobox').pickList.startEditing(diccontentselection.getField('ecertDicContentCombobox').pickList.getRowNum(diccontentselection.getField('ecertDicContentCombobox').getSelectedRecord()), 1);
+		            //diccontentselection.getField('ecertDicContentCombobox').pickList.setEditValue(diccontentselection.getField('ecertDicContentCombobox').pickList.getRowNum(diccontentselection.getField('ecertDicContentCombobox').getSelectedRecord()), 1, newValue);
+
+		        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+
+		        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+	        	}else{
+
+	        		//New Cert Record
+					var newContentRowNo = diccontentlistgrid.getTotalRows() - 1;
+					var arrNo = contentRecord.ecertDicContent.length - 1;
+			        contentRecord.ecertDicContent[arrNo].short_summary = newValue;
+
+			        diccontentlistgrid.setEditValue( newContentRowNo, 2, newValue);
+			        diccontentselection.getField('ecertDicContentCombobox').pickList.setEditValue( newContentRowNo, 1, newValue);
+
+		        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+		        	diccontentselection.getField('ecertDicContentCombobox').pickList.endEditing();
+		        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+	        	}
+	        },
+	    });
+
+	    /*
+	    isc.Label.create({
+	        ID:"ecertDicContentRecordCount",
+	        height:20,
+	        contents: "0/0",
+	    });
+
+	    isc.DynamicForm.create({
+	    	ID:"ecertDicContentSpinner",
+	    	canEdit:false,
+	    	width:70,
+	        fields: [
+	            {name:"ecertDicContentRecordNo", title:"", showTitle:false, shouldSaveValue:false,
+	             editorType:"SpinnerItem", writeStackedIcons:false,
+	             defaultValue:1, min:1, step:1, width:70,
+     	         change:function(form, item, value){
+
+     	        	var countNo = value - 1;
+    	        	var ecertDicContentSpinnerMax = cert_hiddenEcertDicContentListGrid.getTotalRows();
+
+    	        	cert_hiddenEcertDicContentListGrid.selectSingleRecord(countNo);
+
+    	        	ecertDicContentForm.setValue("content", hiddenEcertDicContentListGrid.getEditedRecord(countNo).content);
+
+    		  		ecertDicContentRecordCount.setContents(value + "/" + ecertDicContentSpinnerMax);
+
+     		  		if(value <= ecertDicContentSpinnerMax){
+     		  			//ecertDicContentId = hiddenEcertDicContentListGrid.getSelectedRecord().id;
+     		  			console.log("ecertDicContentId :");
+     		  			console.log(ecertDicContentId);
+     		  		}else{
+     		  			isc.say("No more Exemption Cert Reason.");
+     		  		}
+
+     	         }
+
+	            }
+	        ],
+	    });
+	    //ecertDicContentSpinner.getField('ecertDicContentRecordNo').setSelectionRange(1,9)
+	    //ecertDicContentSpinner.getField('ecertDicContentRecordNo').setDisabled(true);
+	    */
+
+	    isc.IButton.create({
+	  	  ID: "addEcertDicContentBtn",
+	  	  autoDraw: false,
+	  	  width:70,
+	  	  layoutAlign:"center",
+	  	  title:"Add",
+	  	  //---start 00001----
+	  	  onControl:"EXEMPT_CODE_WRITE||FSQC_ALL",
+	  	  //---end 00001----
+	  	  click:function () {
+
+	  		if(ecertExemptionsCodeListGrid.anySelected()){
+
+	  			var formType = getFormType(formTypeBtn);
+	      		var diccontentlistgrid = getContentListGrid( formType );
+	      		var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+	        	var contentRecord = [];
+	        	var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+			  	var newEcertDicContent = {};
+
+			  	ecertDicContentForm.setDisabled(false);
+    			ecertDicContentShortSummary.setDisabled(false);
+			  	
+			  	newEcertDicContent['id'] = tempNew_ecertDicContentId;
+			  	newEcertDicContent['ex_code_id'] = ecertExemptionsCodeListGrid.getSelectedRecord().id;
+			  	newEcertDicContent['exemption_type'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no4;
+			  	newEcertDicContent['form_type'] = formType;
+			  	newEcertDicContent['short_summary'] = "";
+			  	newEcertDicContent['content'] = "";
+			  	//newEcertDicContent['canSelect'] = true;	//jacky
+
+	        	diccontentlistgrid.deselectAllRecords();
+	        	//diccontentselection.getField('ecertDicContentCombobox').pickList.deselectAllRecords();
+
+	      		diccontentlistgrid.startEditingNew(newEcertDicContent);
+
+	      		diccontentselection.getField('ecertDicContentCombobox').makePickList();
+	      		diccontentselection.getField('ecertDicContentCombobox').pickList.startEditingNew(newEcertDicContent);
+	      		//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.saveAllEdits(); //jacky
+	      		//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.endEditing();
+
+	      		tempNew_ecertDicContentId = tempNew_ecertDicContentId - 1;
+
+	        	contentRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+	        	contentRecord.ecertDicContent.push(newEcertDicContent);
+	        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+
+	  			//var ecertDicContentSpinnerMax = hiddenEcertDicContentListGrid.getTotalRows();
+		  		//ecertDicContentRecordCount.setContents(ecertDicContentSpinnerMax + "/" + ecertDicContentSpinnerMax);
+		  		//ecertDicContentRecordCount.setBackgroundColor("#ffff88");
+		  		//ecertDicContentSpinner.setCanEdit(false);
+		  		//addEcertDicContentBtn.setDisabled(true);
+	        	//ecertDicContentRecordCount.setBackgroundColor("#cceebb");
+
+	        	//diccontentlistgrid.selectSingleRecord(diccontentlistgrid.getTotalRows()-1);
+	        	diccontentselection.getField('ecertDicContentCombobox').setDefaultValue();
+	        	diccontentselection.getField('ecertDicContentCombobox').clearValue();
+	        	//ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue("New");
+	        	ecertDicContentShortSummary.clearValues();
+	  			ecertDicContentForm.setCanEdit(true);
+	  			ecertDicContentForm.clearValues();
+	  			ecertDicContentForm.focus();
+
+	  		}else{
+	  			isc.say("No Exemption/Dispensation is Selected.");
+			}
+
+	  	  }
+	    });
+	    isc.IButton.create({
+		  ID: "deleteEcertDicContentBtn",
+		  autoDraw: false,
+		  width:70,
+		  layoutAlign:"center",
+		  title: "Delete",
+		  //--start 00001 ---
+		  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+		  //---end 00001 ==
+		  click:function(){
+
+				  if(ecertExemptionsCodeListGrid.anySelected() ){
+
+			      	  var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+			      	  var diccontentselection = getContentSelection( getFormType(formTypeBtn) );
+					  var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+
+					  if(diccontentlistgrid.anySelected() ){
+					  //if(ecertExemptionsCodeListGrid.getEditedRecord(recordnum).ecertDicContent.length > 0){
+						  isc.ask(promptDeleteMessage_2, function (value){
+							  if (value){
+
+				                	var deleteFlag = true;
+				                	if(DeleteEcertDicContentRecord.length > 0){
+					                	for (i = 0; i < DeleteEcertDicContentRecord.length; i++){
+						                	if(diccontentselection.getItem('ecertDicContentCombobox').pickList.getSelectedRecord().id == DeleteEcertDicContentRecord[i]){
+						                		deleteFlag = false;
+						                	}
+					                	}
+				                	}
+				                	if(deleteFlag){
+
+							        	//var contentRecord = [];
+				                		var ecertExemptionsCodeRecord = [];
+							        	ecertExemptionsCodeRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+							        	if(diccontentlistgrid.getSelectedRecord()){
+								        	DeleteEcertDicContentRecord.push(diccontentlistgrid.getSelectedRecord().id);
+							        	}else{
+							        		DeleteEcertDicContentRecord.push( diccontentlistgrid.getEditedRecord( diccontentlistgrid.getRowNum(diccontentlistgrid.getSelectedRecord())).id );
+							        	}
+
+							        	diccontentlistgrid.removeSelectedData();
+
+							        	ecertExemptionsCodeRecord.ecertDicContent = [];
+
+							        	if(diccontentlistgrid == cert_hiddenEcertDicContentListGrid){
+								        	for(i = 0; i < min_hiddenEcertDicContentListGrid.getTotalRows(); i++) {
+								        		ecertExemptionsCodeRecord.ecertDicContent.push(min_hiddenEcertDicContentListGrid.getRecord(i));
+								        	}
+							        	}else if(diccontentlistgrid == min_hiddenEcertDicContentListGrid){
+								        	for(i = 0; i < cert_hiddenEcertDicContentListGrid.getTotalRows(); i++) {
+								        		ecertExemptionsCodeRecord.ecertDicContent.push(cert_hiddenEcertDicContentListGrid.getRecord(i));
+								        	}
+							        	}
+
+							        	for(i = 0; i < diccontentlistgrid.getTotalRows(); i++) {
+							        		ecertExemptionsCodeRecord.ecertDicContent.push(diccontentlistgrid.getRecord(i));
+							        	}
+
+/*							        	if(diccontentlistgrid.getSelectedRecord()){
+
+										  	//Remove old record
+								        	var recordNo = 0;
+								            for (i = 0; i < ecertExemptionsCodeRecord.ecertDicContent.length; i++) {
+								            	if(ecertExemptionsCodeRecord.ecertDicContent[i].id != diccontentlistgrid.getSelectedRecord().id){
+								            		contentRecord[recordNo] = ecertExemptionsCodeRecord.ecertDicContent[i];
+								            		recordNo = recordNo + 1;
+								            	}
+								            }
+							        	}
+							        	ecertExemptionsCodeRecord.ecertDicContent = contentRecord;
+*/
+
+							        	//ecertExemptionsCodeListGrid.setEditValues(recordnum, []);
+							        	ecertExemptionsCodeListGrid.setEditValues(recordnum, ecertExemptionsCodeRecord);
+
+							        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+							  			//diccontentlistgrid.setEditValues(recordnum, ecertExemptionsCodeRecord);
+							        	//setExemptionReasons(ecertExemptionsCodeRecord.id, formType, cert_hiddenEcertDicContentListGrid, min_hiddenEcertDicContentListGrid, ecertDicContentForm, false);
+
+							        	//diccontentlistgrid.selectRecord(0);
+							        	//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.removeSelectedData();
+							        	//ecertDicContentSelection.getField('ecertDicContentCombobox').pickList.selectRecord(0);
+							        	diccontentselection.getField('ecertDicContentCombobox').setDefaultValue();
+							            diccontentselection.getItem('ecertDicContentCombobox').clearValue();
+							            ecertDicContentForm.clearValues();
+							            ecertDicContentShortSummary.clearValues();
+
+/*									  	//Set Spinner
+									  	if(hiddenEcertDicContentListGrid.getTotalRows() > 0){
+						    	        	var ecertDicContentSpinnerMax = hiddenEcertDicContentListGrid.getTotalRows();
+						    	        	hiddenEcertDicContentListGrid.selectSingleRecord(0);
+						    	        	ecertDicContentSpinner.setValue("ecertDicContentRecordNo", "1");
+						    	        	ecertDicContentForm.setValue("content", hiddenEcertDicContentListGrid.getRecord(0).content);
+						    		  		ecertDicContentRecordCount.setContents("1/" + ecertDicContentSpinnerMax);
+									  	}else{
+									  		resetExemptionReasonsCondition();
+									  	}*/
+
+				                	}
+							  }
+						  });
+					  }else{
+	                	  isc.say("No reason template is Selected or It is an unsaved new record.");
+	                  }
+
+				  }else{
+                	  isc.say("No Exemption/Dispensation is Selected.");
+				  }
+		  }
+		});
+
+	    /*
+		isc.DynamicForm.create({
+		    ID: "ecertDicItemForm",
+		    //dataSource:"ecertDicItemDS",
+			width:"100%",
+			height:350,
+			isGroup:"true",
+			groupTitle:"Condition of Exemption Cert",
+			canEdit:false,
+			titleWidth:"100%",
+	        //autoFocus: true,
+	        items:[
+	        	   {name:"id", title:"ID", hidden:true},
+	               {name:"ex_code_id", title:"Exemption Code ID", hidden:true},
+	               {name:"exemption_type", title:"Exemption Type", hidden:true},
+	               {name:"form_type", title:"Form Type", hidden:true},
+	               {
+	                   type: "textArea",
+	                   name: "content",
+	                   title: "",
+	                   width:"100%",
+	                   height:"100%",
+	                   selectOnFocus: true,
+	                   wrapTitle: false,
+	                   showTitle:false,
+	               },
+	        ],
+	        itemChanged :function(item, newValue, oldValue){
+
+	        	ecertDicItemForm.completeEditing();
+
+	        	var contentRecord = [];
+	        	contentRecord = ecertExemptionsCodeListGrid.getSelectedRecord();
+
+	        	if(hiddenEcertDicItemListGrid.anySelected()){
+
+		            for (i = 0; i < contentRecord.ecertDicItem.length; i++) {
+		            	if(contentRecord.ecertDicItem[i].id == hiddenEcertDicItemListGrid.getSelectedRecord().id){
+		            		contentRecord.ecertDicItem[i].content = ecertDicItemForm.getValue('content');
+		            	}
+		            }
+
+					var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+
+		        	hiddenEcertDicItemListGrid.setEditValue( hiddenEcertDicItemListGrid.getRowNum(hiddenEcertDicItemListGrid.getSelectedRecord()), 0, newValue);
+
+		        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+
+		        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+	        	}else{
+
+					var ecertDicItemNewRowNo = hiddenEcertDicItemListGrid.getTotalRows() - 1;
+
+			        for (i = 0; i < contentRecord.ecertDicItem.length; i++) {
+			            if(contentRecord.ecertDicItem[i].id == null){
+			            	contentRecord.ecertDicItem[i].content = newValue;
+			            }
+			        }
+
+					hiddenEcertDicItemListGrid.setEditValue( ecertDicItemNewRowNo, 0, newValue);
+
+					var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+
+		        	ecertExemptionsCodeListGrid.setEditValues(recordnum, contentRecord);
+
+		        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+	        	}
+	        },
+		});
+		*/
+
+	    isc.ListGrid.create({
+	    	  ID:"cert_hiddenEcertDicItemListGrid",
+	    	  //alternateRecordStyles:true,
+	    	  width:"100%",
+	    	  height:340,
+	    	  overflow:"auto",
+	    	  dataSource:ecertDicItemDS,
+	    	  autoFetchData:false,
+	    	  //autoFitFieldWidths:true,
+	    	  canEdit:false,
+	    	  alternateRecordStyles:true,
+	    	  //editOnFocus: true,
+	    	  //canSelectCells: true,
+	    	  //dataPageSize: 20,
+	    	  //canRemoveRecords:false,
+	    	  autoSaveEdits: true,
+	    	  saveLocally: true,
+	    	  saveByCell: true,
+	    	  editEvent: "click",
+	    	  selectionAppearance:"checkbox",
+	    	  selectionType: "simple",
+	    	  showFilterEditor:false,
+	    	  layoutTopMargin:10,
+	    	  isGroup:"true",
+	    	  groupTitle:"Condition of Exemption Cert",
+
+	    	  fields:[
+	               {name:"ex_code_id", title:"Exemption Code ID", hidden:true},
+	               {name:"exemption_type", title:"Exemption Type", hidden:true},
+	               {name:"form_type", title:"Form Type", hidden:true},
+	               {name:"content", title:"Content", hidden:false, width:"90%"},
+	               {name:"sort", title:"Sort", hidden:false, width:"10%"},
+	    		   {name:"id", title:"ID", hidden:true, width:50}
+	               ],
+	 			  sortField: 1,
+				  sortDirection: "ascending",
+	              wrapCells: true,
+	              cellHeight: 75,
+
+	    	  rowClick:function(record, recordNum, fieldNum){
+
+	    			if(this.canEdit){
+	    				this.startEditing(recordNum, fieldNum);
+	    			}
+	    	  },
+	    	  editComplete :function(rowNum, colNum, newValues, oldValues, editCompletionEvent){
+	    		  
+	    		  exemptionCodeUnsaveFlag_otherParts = true;
+				  
+			  },
+ 	          cellChanged :function(record, newValue, oldValue, rowNum, colNum, grid){
+
+		          var itemRecord = [];
+				  var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+				  itemRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+	        	  if( record.id != null ){
+
+		        		//edit Record
+			            for (i = 0; i < itemRecord.ecertDicItem.length; i++) {
+			            	if(itemRecord.ecertDicItem[i].id == this.getEditedRecord(rowNum).id){
+			            		itemRecord.ecertDicItem[i].content = this.getEditedRecord(rowNum).content;
+			            		itemRecord.ecertDicItem[i].sort = this.getEditedRecord(rowNum).sort;
+			            	}
+			            }
+			        	ecertExemptionsCodeListGrid.setEditValues(recordnum, itemRecord);
+
+			        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+	        	  }else if( record.id == null ){
+
+		        		//New Record
+	        		    var newItemRecord = this.getEditedRecord(rowNum);
+
+	        		    newItemRecord.id = tempNew_ecertDicItemId;
+
+					  	tempNew_ecertDicItemId = tempNew_ecertDicItemId - 1;
+
+						itemRecord.ecertDicItem.push(newItemRecord);
+						this.setEditValues(rowNum, newItemRecord);
+			        	ecertExemptionsCodeListGrid.setEditValues(recordnum, itemRecord);
+
+			        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+	        	  }
+	          }
+
+			  //rowEditorExit:function(editCompletionEvent, record, newValues, oldValue, rowNum){
+			  //editComplete:function(record, rowNum, colNum, newValues, oldValues, editCompletionEvent){
+			  //rowHasChanges:function(rowNum){
+			  //editorExit :function(editCompletionEvent, record, newValue, rowNum, colNum){
+	    	  //rowEditorEnter :function(record, editValues, rowNum){
+
+	    });
+	    isc.ListGrid.create({
+	    	  ID:"min_hiddenEcertDicItemListGrid",
+	    	  //alternateRecordStyles:true,
+	    	  width:"100%",
+	    	  height:340,
+	    	  overflow:"auto",
+	    	  dataSource:ecertDicItemDS,
+	    	  autoFetchData:false,
+	    	  //autoFitFieldWidths:true,
+	    	  canEdit:false,
+	    	  alternateRecordStyles:true,
+	    	  //editOnFocus: true,
+	    	  //canSelectCells: true,
+	    	  //dataPageSize: 20,
+	    	  //canRemoveRecords:false,
+	    	  autoSaveEdits: true,
+	    	  saveLocally: true,
+	    	  saveByCell: true,
+	    	  editEvent: "click",
+	    	  selectionAppearance:"checkbox",
+	    	  selectionType: "simple",
+	    	  showFilterEditor:false,
+	    	  layoutTopMargin:10,
+	    	  isGroup:"true",
+	    	  groupTitle:"Condition of Exemption Cert",
+
+	    	  fields:[
+	    		   //{name:"id", title:"ID", hidden:true},
+	               {name:"ex_code_id", title:"Exemption Code ID", hidden:true},
+	               {name:"exemption_type", title:"Exemption Type", hidden:true},
+	               {name:"form_type", title:"Form Type", hidden:true},
+	               {name:"content", title:"Content", hidden:false, width:"90%"},
+	               {name:"sort", title:"Sort", hidden:false, width:"10%"},
+	               ],
+	 			  sortField: 1,
+				  sortDirection: "ascending",
+	              wrapCells: true,
+	              cellHeight: 75,
+
+	    	  rowClick:function(record, recordNum, fieldNum){
+
+	    			if(this.canEdit){
+	    				this.startEditing(recordNum, fieldNum);
+	    			}
+	    	  },
+	    	  editComplete :function(rowNum, colNum, newValues, oldValues, editCompletionEvent){
+	    		  
+	    		  exemptionCodeUnsaveFlag_otherParts = true;
+				  
+			  },
+
+	          cellChanged :function(record, newValue, oldValue, rowNum, colNum, grid){
+
+		          var itemRecord = [];
+				  var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+				  itemRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+				  if( record.id != null ){
+
+		        		//edit Record
+			            for (i = 0; i < itemRecord.ecertDicItem.length; i++) {
+			            	if(itemRecord.ecertDicItem[i].id == record.id){
+			            		itemRecord.ecertDicItem[i].content = record.content;
+			            		itemRecord.ecertDicItem[i].sort = record.sort;
+			            	}
+			            }
+			        	ecertExemptionsCodeListGrid.setEditValues(recordnum, itemRecord);
+
+			        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+	        	  }else if( record.id == null ){
+
+		        		//New Record
+	        		    var newItemRecord = this.getEditedRecord(rowNum);
+
+	        		    newItemRecord.id = tempNew_ecertDicItemId;
+
+					  	tempNew_ecertDicItemId = tempNew_ecertDicItemId - 1;
+
+						itemRecord.ecertDicItem.push(newItemRecord);
+						this.setEditValues(rowNum, newItemRecord);
+			        	ecertExemptionsCodeListGrid.setEditValues(recordnum, itemRecord);
+
+			        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+			      }
+	          }
+	    });
+	    /*
+	    isc.Label.create({
+	        ID:"ecertDicItemRecordCount",
+	        height:20,
+	        contents: "0/0",
+	    });
+
+	    isc.DynamicForm.create({
+	    	ID:"ecertDicItemSpinner",
+	    	width:70,
+	    	canEdit:false,
+	        fields: [
+	            {name:"ecertDicItemRecordNo", title:"", showTitle:false, shouldSaveValue: false,
+	             editorType: "SpinnerItem", writeStackedIcons: false,
+	             defaultValue:1, min:1, step:1, width:70,
+     	         change:function(form, item, value){
+
+      	        	var countNo = value - 1;
+     	        	var ecertDicItemSpinnerMax = hiddenEcertDicItemListGrid.getTotalRows();
+     	        	ecertDicItemForm.setValue("content", hiddenEcertDicItemListGrid.getRecord(countNo).content);
+
+     		  		ecertDicItemRecordCount.setContents(value + "/" + ecertDicItemSpinnerMax);
+
+      	         }
+
+	            },
+	        ]
+	    });
+	    */
+
+	    isc.IButton.create({
+		  	  ID: "addEcertDicItemBtn",
+		  	  autoDraw: false,
+		  	  width:70,
+		  	  layoutAlign:"center",
+		  	  title: "Add",
+		  	  //--start 00001-----
+		  	  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+		  	  //---end 00001----
+		  	  click : function () {
+
+			  		if(ecertExemptionsCodeListGrid.anySelected()){
+
+			  			var formType = getFormType(formTypeBtn);
+			      		var itemlistgrid = getItemListGrid(formType);
+
+					  	var ecertDicItem = {};
+					  	ecertDicItem['ex_code_id'] = ecertExemptionsCodeListGrid.getSelectedRecord().id;
+					  	ecertDicItem['exemption_type'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no4;
+					  	ecertDicItem['form_type'] = formType;
+					  	ecertDicItem['content'] = "";
+
+					  	itemlistgrid.startEditingNew(ecertDicItem);
+
+			  			/* below is for form UI
+
+			      		var formType = "";
+			    		if(formTypeBtn.getValues().form_type == "Exemption Cert"){
+			    			formType = "Exemption Certificate";
+			    		}else if(formTypeBtn.getValues().form_type == "Minute"){
+			    			formType = "Minute";
+			    		}
+
+					  	var ecertDicItem = {};
+					  	ecertDicItem['ex_code_id'] = ecertExemptionsCodeListGrid.getSelectedRecord().id;
+					  	ecertDicItem['exemption_type'] = ecertExemptionsCodeListGrid.getSelectedRecord().level_no4;
+					  	ecertDicItem['form_type'] = formType;
+					  	ecertDicItem['content'] = "";
+
+			  			hiddenEcertDicItemListGrid.startEditingNew(ecertDicItem);
+
+			        	var contentRecord = [];
+			        	contentRecord = ecertExemptionsCodeListGrid.getSelectedRecord();
+
+			        	//hiddenEcertDicContentListGrid.setEditValues( ecertDicContentNewRowNo, ecertDicContent);
+			        	contentRecord.ecertDicItem.push(ecertDicItem);
+
+			  			var ecertDicItemSpinnerMax = hiddenEcertDicItemListGrid.getTotalRows();
+				  		ecertDicItemRecordCount.setContents(ecertDicItemSpinnerMax + "/" + ecertDicItemSpinnerMax);
+				  		//ecertDicContentRecordCount.setBackgroundColor("#ffff88");
+				  		ecertDicItemSpinner.setCanEdit(false);
+
+			  			hiddenEcertDicItemListGrid.deselectAllRecords();
+
+			  			ecertDicItemForm.setCanEdit(true);
+			  			ecertDicItemForm.clearValues();
+			  			ecertDicItemForm.focus();
+			  			*/
+
+			  		}else{
+			  			isc.say("No Exemption/Dispensation is Selected.");
+					}
+
+		  	  }
+		    });
+		isc.IButton.create({
+			  ID: "deleteEcertDicItemBtn",
+			  autoDraw: false,
+			  width:70,
+			  layoutAlign:"center",
+			  title: "Delete",
+			  //--start 00001 ---
+			  onControl:"FSQC_ALL||EXEMPT_CODE_WRITE",
+			  //---end 00001 ==
+			  click:function(){
+
+				  var formType = getFormType(formTypeBtn);
+				  var listgrid = getItemListGrid(formType);
+
+				  if(listgrid.anySelected()){
+					  isc.ask(promptDeleteMessage_2, function (value){
+						  if (value){
+
+								var recordnum = ecertExemptionsCodeListGrid.getRowNum(ecertExemptionsCodeListGrid.getSelectedRecord());
+							  	var ecertExemptionsCodeRecord = [];
+					        	ecertExemptionsCodeRecord = ecertExemptionsCodeListGrid.getEditedRecord(recordnum);
+
+					        	//var itemRecord = [];
+					        	//var RecordNo = 0;
+
+					        	for (i = 0; i < listgrid.getSelectedRecords().length; i++) {
+					        		//ecertExemptionsCodeRecord.ecertDicItem.remove(listgrid.getSelectedRecords()[i]);
+					        		ecertExemptionsCodeRecord.ecertDicItem.removeAt( ecertExemptionsCodeRecord.ecertDicItem.findIndex( {id:listgrid.getSelectedRecords()[i].id} ) );
+					        	}
+
+/*					        	for (i = 0; i < listgrid.getSelectedRecords().length; i++) {
+						            for (j = 0; j < ecertExemptionsCodeRecord.ecertDicItem.length; j++) {
+
+						            	if(ecertExemptionsCodeRecord.ecertDicItem[j].id != listgrid.getSelectedRecords()[i].id){
+						            		//if(!itemRecord.contains(ecertExemptionsCodeRecord.ecertDicItem[i])){
+							            		itemRecord[RecordNo] = ecertExemptionsCodeRecord.ecertDicItem[j];
+							            		RecordNo = RecordNo + 1;
+							            		console.log(ecertExemptionsCodeRecord.ecertDicItem[i].id);
+							            		console.log(listgrid.getSelectedRecords()[i].id);
+							            		console.log(RecordNo);
+							            		console.log(itemRecord);
+						            		//}
+						            	}
+
+						            }
+					        	}
+					            ecertExemptionsCodeRecord.ecertDicItem = itemRecord;
+*/
+					        	ecertExemptionsCodeListGrid.setEditValues(recordnum, {});
+					        	ecertExemptionsCodeListGrid.setEditValues(recordnum, ecertExemptionsCodeRecord);
+
+					        	saveEditedRecordNum(ecertExemptionsCodeListGrid, EditedExemptionsCodeFormRecord);
+
+					        	listgrid.removeSelectedData();
+
+							  	/*
+							  	if(hiddenEcertDicItemListGrid.getTotalRows() > 0){
+				    	        	var ecertDicItemSpinnerMax = hiddenEcertDicItemListGrid.getTotalRows();
+
+				    	        	hiddenEcertDicItemListGrid.selectSingleRecord(0);
+
+				    	        	ecertDicItemSpinner.setValue("ecertDicItemRecordNo", "1");
+
+				    	        	ecertDicItemForm.setValue("content", hiddenEcertDicItemListGrid.getRecord(0).content);
+
+				    		  		ecertDicItemRecordCount.setContents("1/" + ecertDicItemSpinnerMax);
+							  	}else{
+							  		resetExemptionReasonsCondition();
+							  	}
+							  	*/
+						  	}
+					  });
+				  }else{
+                	  isc.say("No Condition of Exemption Cert. is Selected.");
+				  }
+
+		  }
+		});
+
+	    isc.HLayout.create({
+	    	ID:"formTypeBtnBar",
+	    	width:"50%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[formTypeBtn]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"headingForCertFormGroup",
+	    	width:"100%",
+	    	//height:300,
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[headingForCertForm]
+	    });
+
+	    isc.VLayout.create({
+	    	ID:"ecertDicContentBtnBar",
+	    	//width: "50%",
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign:"top",
+	    	align:"top",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[]
+    		//members:[ecertDicContentSelection,  addEcertDicContentBtn, deleteEcertDicContentBtn]
+	    });
+
+	    isc.VLayout.create({
+	    	ID:"ecertDicItemBtnBar",
+	    	//width: "50%",
+	    	//layoutTopMargin:10,
+	    	VerticalAlignment:"top",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	//members:[ecertDicItemRecordCount, ecertDicItemSpinner, addEcertDicItemBtn, deleteEcertDicItemBtn]
+	    	//members:[addEcertDicItemBtn, deleteEcertDicItemBtn]
+    		members:[]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"ecertDicContentSelectionGroup",
+	    	width:"100%",
+	    	//height:300,
+	    	//layoutTopMargin:10,
+	    	align:"left",
+	    	defaultLayoutAlign: "left",
+	    	showEdges: false,
+	    	membersMargin:1,
+	    	members:[cert_ecertDicContentSelection, ecertDicContentShortSummary]
+	    });
+
+	    isc.VLayout.create({
+	    	ID:"ecertDicContentPane",
+	    	width: "100%",
+	    	layoutTopMargin:8,
+	    	VerticalAlignment:"top",
+	    	showEdges: false,
+			isGroup:"true",
+			groupTitle:"Reasons of Exemption Cert",
+	    	membersMargin:5,
+	    	//members:[ecertDicItemRecordCount, ecertDicItemSpinner, addEcertDicItemBtn, deleteEcertDicItemBtn]
+	    	//members:[addEcertDicItemBtn, deleteEcertDicItemBtn]
+    		members:[ecertDicContentSelectionGroup, ecertDicContentForm]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"ecertDicContentFormGroup",
+	    	width:"100%",
+	    	//height:300,
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[ecertDicContentPane, ecertDicContentBtnBar]
+    		//members:[ecertDicContentPane, cert_hiddenEcertDicContentListGrid, ecertDicContentBtnBar]
+    		//members:[ecertDicContentPane, cert_hiddenEcertDicContentListGrid, min_hiddenEcertDicContentListGrid, ecertDicContentBtnBar]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"ecertDicItemFormGroup",
+	    	width:"100%",
+	    	//height:300,
+	    	//layoutTopMargin:10,
+	    	defaultLayoutAlign: "center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	//members:[ecertDicItemForm, ecertDicItemBtnBar]
+    		members:[cert_hiddenEcertDicItemListGrid, ecertDicItemBtnBar]
+	    });
+
+	    isc.VLayout.create({
+	    	ID:"RightColumn",
+	    	width: "50%",
+	    	//layoutTopMargin:10,
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	//members:[exemptionCodeListBtnBar, formTypeBtnBar, headingForCertFormGroup, ecertDicContentFormGroup, ecertDicItemFormGroup]
+	    	members:[formTypeBtnBar, headingForCertFormGroup, ecertDicContentFormGroup, ecertDicItemFormGroup]
+	    });
+
+	    isc.HLayout.create({
+	    	ID:"ExemptionCodeLowerPage",
+	    	width:"100%",
+	    	layoutTopMargin:0,
+	    	defaultLayoutAlign: "center",
+	    	showEdges: false,
+	    	membersMargin:5,
+	    	members:[LeftColumn, RightColumn]
+	    });
+
+        if(formTypes == "cert"){
+
+        	formTypeBtn.getItem('form_type').setValueMap(["Exemption Cert"]);
+
+        }else if(formTypes == "minute"){
+
+        	formTypeBtn.getItem('form_type').setValueMap(["Minute"]);
+        	formTypeBtn.getItem('form_type').setValue("Minute");
+
+        	ecertDicContentSelectionGroup.removeMember(cert_ecertDicContentSelection);
+        	ecertDicContentSelectionGroup.addMember(min_ecertDicContentSelection, 0);
+
+		  	ecertDicItemFormGroup.removeMember(cert_hiddenEcertDicItemListGrid);
+		  	ecertDicItemFormGroup.addMember(min_hiddenEcertDicItemListGrid, 0);
+        }
+
+		isc.Window.create({
+		    ID:"ExemptionCodeWindow",
+		    title: "Exemption Code",
+		    width:"98%",
+		    height:845,
+		    autoSize:true,
+		    autoCenter: true,
+		    isModal: true,
+		    showModalMask: true,
+		    autoDraw: false,
+		    closeClick : function(){
+		    	
+				ecertExemptionsCodeListGrid.endEditing();
+  				keywordsListGrid.endEditing();
+			    cert_hiddenEcertDicItemListGrid.endEditing();
+  			    min_hiddenEcertDicItemListGrid.endEditing();
+		    	
+		    	if(exemptionCodeUnsaveFlag_mainGrid || exemptionCodeUnsaveFlag_otherParts){
+		    		isc.ask("Edited content(s) is/are not saved. Are you sure to close?", function(value){
+		    				  if (value){
+		    					  
+								  resetVariables();
+		    					  ExemptionCodeWindow.hide();
+		    				  }
+		    		});
+		    	}else{
+					  resetVariables();
+					  ExemptionCodeWindow.hide();		    		
+		    	}
+		    },
+		    items: [
+
+				    isc.VLayout.create({
+				    	ID:"ExemptionCodeFullPage",
+				    	width:"100%",
+				    	layoutTopMargin:0,
+				    	defaultLayoutAlign: "center",
+				    	showEdges: false,
+				    	membersMargin:5,
+				    	members:[ExemptionCodeUpperPage, ExemptionCodeLowerPage]
+				    })
+
+			]
+		});
+		
+	}
+}
+
+//----------------------------------------------------------FUNCTION----------------------------------------------------------------------------------------------------
+
+function saveEditedRecordNum(listgrid, recordarr){
+	//var recordnum = listgrid.getRowNum(listgrid.getSelectedRecord());
+	var recordId = listgrid.getSelectedRecord().id;
+
+	if(!recordarr.includes(recordId)){
+		recordarr.push(recordId);
+	}
+}
+
+function setExemptionReasons(record, formType, cert_contentlistgrid, min_contentlistgrid, diccontentform, fetchdataFlag){
+
+    if(fetchdataFlag){
+	    var cert_ecertDicContentSet = [];
+	    var min_ecertDicContentSet = [];
+
+	    for (i = 0; i < record.length; i++) {
+	  	  	if(record[i].form_type == "Exemption Certificate"){
+	  	  		cert_ecertDicContentSet.push(record[i]);
+	  	  	}else if(record[i].form_type == "Minute"){
+	  	  		min_ecertDicContentSet.push(record[i]);
+	  	  	}
+	    }
+
+	    if(cert_ecertDicContentSet.length){
+
+	    	cert_contentlistgrid.setData(cert_ecertDicContentSet);
+			cert_contentlistgrid.deselectAllRecords();
+			cert_contentlistgrid.selectSingleRecord(0);
+			if( cert_contentlistgrid.getEditedRecord( cert_contentlistgrid.getRowNum(cert_contentlistgrid.getSelectedRecord()) ).id > 0){
+	    		cert_ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue(cert_contentlistgrid.getSelectedRecord().id);				
+			}
+
+			if(formType == "Exemption Certificate"){
+				diccontentform.setValues(cert_contentlistgrid.getEditedRecord(0));
+	      	    ecertDicContentShortSummary.getField('short_summary').setValue( cert_contentlistgrid.getSelectedRecord().short_summary );
+			}
+/*	    }else{
+	    	cert_contentlistgrid.setData([]);
+			if(formType == "Exemption Certificate"){
+				ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue();
+			}
+*/	    }
+
+	    if(min_ecertDicContentSet.length){
+	    	min_contentlistgrid.setData(min_ecertDicContentSet);
+			min_contentlistgrid.deselectAllRecords();
+			min_contentlistgrid.selectSingleRecord(0);
+			if( min_contentlistgrid.getEditedRecord( min_contentlistgrid.getRowNum(min_contentlistgrid.getSelectedRecord()) ).id > 0 ){
+	    		min_ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue(min_contentlistgrid.getSelectedRecord().id);				
+			}
+
+			if(formType == "Minute"){
+				diccontentform.setValues(min_contentlistgrid.getEditedRecord(0));
+	      	    ecertDicContentShortSummary.getField('short_summary').setValue( min_contentlistgrid.getSelectedRecord().short_summary );
+			}
+/*	    }else{
+	    	min_contentlistgrid.setData([]);
+	    	if(formType == "Minute"){
+				ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue();
+	    	}
+*/	    }
+
+    	/*
+		cert_contentlistgrid.fetchData({form_type:"Exemption Certificate", ex_code_id:exemptionID}, function (dsResponse, data, dsRequest){
+			cert_contentlistgrid.deselectAllRecords();
+			cert_contentlistgrid.selectSingleRecord(0);
+
+			if(formType == "Exemption Certificate"){
+				//diccontentform.setCanEdit(true);
+				diccontentform.setValues(cert_contentlistgrid.getEditedRecord(0));
+			}
+		});
+		min_contentlistgrid.fetchData({form_type:"Minute", ex_code_id:exemptionID}, function (dsResponse, data, dsRequest){
+			min_contentlistgrid.deselectAllRecords();
+			min_contentlistgrid.selectSingleRecord(0);
+
+			if(formType == "Minute"){
+				//diccontentform.setCanEdit(true);
+				diccontentform.setValues(min_contentlistgrid.getEditedRecord(0));
+			}
+		});
+		*/
+
+    }else{
+
+    	if(formType == "Exemption Certificate"){
+    		cert_selectedRowNo = cert_contentlistgrid.getRowNum(cert_contentlistgrid.getSelectedRecord());
+    		//cert_contentlistgrid.deselectAllRecords();
+    		//cert_contentlistgrid.selectSingleRecord(cert_selectedRowNo);
+    		//diccontentform.setCanEdit(true);
+    		if(cert_contentlistgrid.getTotalRows() > 0){
+    			
+				diccontentform.setDisabled(false);
+				ecertDicContentShortSummary.setDisabled(false);
+
+        		diccontentform.setValues(cert_contentlistgrid.getEditedRecord(cert_selectedRowNo));
+        		
+        		if( cert_contentlistgrid.getEditedRecord(cert_selectedRowNo).id > 0){
+            		cert_ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue(cert_contentlistgrid.getEditedRecord(cert_selectedRowNo).id);
+        		}
+        		
+	      	    ecertDicContentShortSummary.getField('short_summary').setValue( cert_contentlistgrid.getEditedRecord(cert_selectedRowNo).short_summary );
+			}else{
+				diccontentform.setDisabled(true);
+				ecertDicContentShortSummary.setDisabled(true);
+	        }
+    		//ecertDicContentSelection.getField('ecertDicContentCombobox').setCriterion(fieldName: "ecertDicContentCombobox", operator: "equals", value: 401);
+    	}else if(formType == "Minute"){
+    		min_selectedRowNo = min_contentlistgrid.getRowNum(min_contentlistgrid.getSelectedRecord());
+    		//min_contentlistgrid.deselectAllRecords();
+    		//min_contentlistgrid.selectSingleRecord(min_selectedRowNo);
+    		//diccontentform.setCanEdit(true);
+    		if(min_contentlistgrid.getTotalRows() > 0){
+    			
+				diccontentform.setDisabled(false);
+				ecertDicContentShortSummary.setDisabled(false);
+    			
+        		diccontentform.setValues(min_contentlistgrid.getEditedRecord(min_selectedRowNo));
+        		
+        		if( min_contentlistgrid.getEditedRecord(min_selectedRowNo).id > 0 ){
+            		min_ecertDicContentSelection.getItem('ecertDicContentCombobox').setDefaultValue(min_contentlistgrid.getEditedRecord(min_selectedRowNo).id);
+        		}
+        		
+	      	    ecertDicContentShortSummary.getField('short_summary').setValue( min_contentlistgrid.getEditedRecord(min_selectedRowNo).short_summary );
+    		}else{
+    			diccontentform.setDisabled(true);
+    			ecertDicContentShortSummary.setDisabled(true);
+	        }
+    	}
+
+    }
+}
+
+function setExemptionCondition(record, formType, cert_itemlistgrid, min_itemlistgrid, setdataFlag){
+
+	if(setdataFlag){
+
+	    var cert_ecertDicItemSet = [];
+	    var min_ecertDicItemSet = [];
+
+	    for (i = 0; i < record.length; i++) {
+		  	  	if(record[i].form_type == "Exemption Certificate"){
+		  	  		cert_ecertDicItemSet.push(record[i]);
+		  	  	}else if(record[i].form_type == "Minute"){
+		  	  		min_ecertDicItemSet.push(record[i]);
+		  	  	}
+	    }
+
+	    if(cert_ecertDicItemSet.length != 0){
+	    	cert_itemlistgrid.setData(cert_ecertDicItemSet);
+	    	//listgrid.setData(parentlistgrid.getSelectedRecord().ecertDicItem);
+			//form.setValue('content', listgrid.getRecord(0).content);
+
+			//form.setCanEdit(true);
+			//spinner.setCanEdit(true);
+			//spinner.setValue("ecertDicContentRecordNo", "1");
+
+			//count.setContents("1/" + listgrid.getTotalRows());
+	    }else{
+	    	cert_itemlistgrid.setData([]);
+	    }
+
+	    if(min_ecertDicItemSet.length != 0){
+	    	min_itemlistgrid.setData(min_ecertDicItemSet);
+	    }else{
+	    	min_itemlistgrid.setData([]);
+	    }
+	}
+
+}
+
+function enableAllComponents(){
+	
+	var formType = getFormType(formTypeBtn);
+	//var diccontentlistgrid = getContentListGrid( getFormType(formTypeBtn) );
+  	
+	remarksForm.setDisabled(false);
+    headingForCertForm.setDisabled(false);
+    keywordsListGrid.setCanEdit(true);
+    
+    if(formType == "Exemption Certificate"){
+        if(cert_hiddenEcertDicContentListGrid.getTotalRows() > 0){
+            ecertDicContentForm.setDisabled(false);
+            ecertDicContentShortSummary.setDisabled(false);
+        }else{
+            ecertDicContentForm.setDisabled(true);
+            ecertDicContentShortSummary.setDisabled(true);    	
+        }
+    }else if(formType == "Minute"){
+        if(min_hiddenEcertDicContentListGrid.getTotalRows() > 0){
+            ecertDicContentForm.setDisabled(false);
+            ecertDicContentShortSummary.setDisabled(false);
+        }else{
+            ecertDicContentForm.setDisabled(true);
+            ecertDicContentShortSummary.setDisabled(true);    	
+        }    	
+    }
+
+    cert_hiddenEcertDicItemListGrid.setCanEdit(true);
+    min_hiddenEcertDicItemListGrid.setCanEdit(true);
+    
+	addKeywordsBtn.setDisabled(false);
+	deleteKeywordsBtn.setDisabled(false);
+	addEcertDicContentBtn.setDisabled(false);
+	deleteEcertDicContentBtn.setDisabled(false);
+	addEcertDicItemBtn.setDisabled(false);
+	deleteEcertDicItemBtn.setDisabled(false);
+
+}
+
+function disableAllComponents(){
+	
+	remarksForm.setDisabled(true);
+	keywordsListGrid.setCanEdit(false);
+	//formTypeBtn.setDisabled(true);
+	headingForCertForm.setDisabled(true);
+
+	//cert_ecertDicContentSelection.setDisabled(true);
+	//min_ecertDicContentSelection.setDisabled(true);
+	ecertDicContentShortSummary.setDisabled(true);
+	ecertDicContentForm.setDisabled(true);
+	
+	cert_hiddenEcertDicItemListGrid.setDisabled(true);
+	min_hiddenEcertDicItemListGrid.setDisabled(true);
+
+	addKeywordsBtn.setDisabled(true);
+	deleteKeywordsBtn.setDisabled(true);
+	addEcertDicContentBtn.setDisabled(true);
+	deleteEcertDicContentBtn.setDisabled(true);
+	addEcertDicItemBtn.setDisabled(true);
+	deleteEcertDicItemBtn.setDisabled(true);
+
+}
+
+function resetVariables(){
+	
+	EditedExemptionsCodeFormRecord = [];
+	EditedExemptionsCodeRecord = [];
+	NewExemptionsCodeRecordrownum = [];
+	NewExemptionsCodeRecord = [];
+	newExemptionRecordFlag = false;
+	tempNew_ExemptionRecordId = -1;
+
+	cert_ecertDicContentId = -1;
+	min_ecertDicContentId = -1;
+	cert_ecertdicItemArr = [];
+	min_ecertdicItemArr = [];
+
+	DeleteEcertDicContentRecord = [];
+	tempNew_ecertDicContentId = -1;
+	tempNew_ecertDicItemId = -1;
+	selectedExemptionRecord = {};
+
+	exemptionCodeUnsaveFlag_mainGrid = false;
+	exemptionCodeUnsaveFlag_otherParts = false;
+}
+
+function resetExemptionRemarkKeywordHeading(){
+	
+	remarksForm.clearValues();
+	keywordsListGrid.setData([]);
+	headingForCertForm.clearValues();
+}
+
+function resetExemptionReasonsCondition(clearContentItemFlag){
+
+	//addEcertDicContentBtn.setDisabled(false);
+
+	if(clearContentItemFlag){
+	    cert_hiddenEcertDicContentListGrid.setData([]);
+	    min_hiddenEcertDicContentListGrid.setData([]);
+
+	    cert_hiddenEcertDicItemListGrid.setData([]);
+	    min_hiddenEcertDicItemListGrid.setData([]);
+	}
+
+    ecertDicContentForm.clearValues();
+    ecertDicContentShortSummary.clearValues();
+    //ecertDicContentForm.setCanEdit(false);
+    cert_ecertDicContentSelection.getField('ecertDicContentCombobox').setDefaultValue();
+    cert_ecertDicContentSelection.getField('ecertDicContentCombobox').clearValue();
+    min_ecertDicContentSelection.getField('ecertDicContentCombobox').setDefaultValue();
+    min_ecertDicContentSelection.getField('ecertDicContentCombobox').clearValue();
+    //ecertDicContentSpinner.setCanEdit(false);
+    //ecertDicContentSpinner.setValue("ecertDicContentRecordNo", "0");
+    //ecertDicContentRecordCount.setContents("0/0");
+
+    //ecertDicItemForm.clearValues();
+    //hiddenEcertDicItemListGrid.setData([]);
+    //ecertDicItemForm.setCanEdit(false);
+    //ecertDicItemSpinner.setCanEdit(false);
+    //ecertDicContentSpinner.setValue("ecertDicContentRecordNo", "0");
+    //ecertDicItemRecordCount.setContents("0/0");
+}
+
+function setAllComponents( record, recordNum, fieldNum ){
+
+	  var formType = getFormType(formTypeBtn);
+      var itemListgrid = getItemListGrid(formType);
+      
+      //var cell = ecertExemptionsCodeListGrid.getCellSelection();
+      //ecertDicContentRecordCount.setBackgroundColor("#ffffff");
+
+//Remarks Part
+
+      remarksForm.clearValues();
+      //remarksForm.setCanEdit(true);
+      remarksForm.editSelectedData(ecertExemptionsCodeListGrid);
+
+//Keywords Part
+
+      //keywordsListGrid.canEdit(true);
+      keywordsListGrid.setData([]);
+
+      if(record.keywordList != null){
+/*    	    var keywords = [];
+    	    var keywordsRecord = [];
+    	    if(!Array.isArray(record.keywordList)){
+    	  	  	keywordsRecord = record.keywordList.split(",");
+    	    }else{
+    	  	  	keywordsRecord = record.keywordList;
+    	    }
+
+    	    for (i = 0; i < keywordsRecord.length; i++) {
+    	  	  	keywords.push(getkeywords(record.keywordList));
+    	    }
+*/
+          keywordsListGrid.setData(getKeywords(record.keywordList));
+      }
+
+//Heading Part
+
+      headingForCertForm.clearValues();
+      //headingForCertForm.setCanEdit(true);
+
+      if(formType == "Exemption Certificate"){
+    	  headingForCertForm.setValue("subheading",record.subheading);
+      }else if(formType == "Minute"){
+    	  headingForCertForm.setValue("subheading",record.exemption_for);
+      }
+
+//Reasons Part
+
+      resetExemptionReasonsCondition(true);
+
+      if(record.ecertDicContent.length != 0){
+	      setExemptionReasons(record.ecertDicContent, formType, cert_hiddenEcertDicContentListGrid, min_hiddenEcertDicContentListGrid, ecertDicContentForm, true)
+      }
+
+//Condition Part
+
+      if(record.ecertDicItem.length != 0){
+    	  setExemptionCondition(record.ecertDicItem, formType, cert_hiddenEcertDicItemListGrid, min_hiddenEcertDicItemListGrid, true);
+      }else{
+    	  itemListgrid.setData([]);
+      }
+
+}
+
+function getFormType(formTypeBtn) {
+
+	var formType = "";
+	if(formTypeBtn.getValues().form_type == "Exemption Cert"){
+		formType = "Exemption Certificate";
+	}else if(formTypeBtn.getValues().form_type == "Minute"){
+		formType = "Minute";
+	}
+	return formType;
+}
+
+function getKeywords(recordKeywordList){
+
+    var keywords = [];
+    var keywordsRecord = [];
+    if(recordKeywordList != null)
+	{
+        if(!Array.isArray(recordKeywordList) ){
+    		keywordsRecord = recordKeywordList.split(",");
+        }else{
+        	keywordsRecord = recordKeywordList;
+        }
+	}
+
+    for (i = 0; i < keywordsRecord.length; i++) {
+  	  keywords.push({keywords:keywordsRecord[i]});
+    }
+    return keywords;
+}
+
+function getContentSelection(formType) {
+
+	var contentSelection = "";
+	if(formType == "Exemption Certificate"){
+		contentSelection = cert_ecertDicContentSelection;
+	}else if(formType == "Minute"){
+		contentSelection = min_ecertDicContentSelection;
+	}
+	return contentSelection;
+}
+
+function getContentListGrid(formType) {
+
+	var contentListGrid = "";
+	if(formType == "Exemption Certificate"){
+		contentListGrid = cert_hiddenEcertDicContentListGrid;
+	}else if(formType == "Minute"){
+		contentListGrid = min_hiddenEcertDicContentListGrid;
+	}
+	return contentListGrid;
+}
+
+function getItemListGrid(formType) {
+
+	var itemListGrid = "";
+	if(formType == "Exemption Certificate"){
+		itemListGrid = cert_hiddenEcertDicItemListGrid;
+	}else if(formType == "Minute"){
+		itemListGrid = min_hiddenEcertDicItemListGrid;
+	}
+	return itemListGrid;
+}
+
+function isEmpty(obj) {
+    for(var key in obj) {
+        if(obj.hasOwnProperty(key))
+            return false;
+    }
+    return true;
+}
+
+
+//----------------------- Query Search part ---------------------------------
+var resultData = {};
+var getNthResult = 0;
+
+function mergeResultData(resultData, data){
+	var found = false;
+	var origRecCnt = 0;
+	Object.keys(resultData).forEach(function(item, index){
+		if (isc.isA.Number(parseInt(index, 10)))
+			origRecCnt++;
+	});
+
+	for (var field in data) {
+		if (!isc.isA.Number(parseInt(field, 10)))
+			continue;
+		found = false;
+
+		for (var property in resultData) {
+			if (!isc.isA.Number(parseInt(property, 10)))
+				continue;
+			if (!isNull(resultData[property]["id"]) && !isNull(data[field]["id"])) {
+				if (resultData[property]["id"] == data[field]["id"]) {
+					found = true;
+					break;
+				}
+			}
+		}
+		if (!found){
+			resultData[origRecCnt] = data[field];
+			origRecCnt++;
+		}
+	}
+}
+
+function handleResultData(dsResponse, data, dsRequest){
+	getNthResult++;
+	//clear ListGrid??
+	if (getNthResult == 1){
+		resultData = data;
+	}else{
+		mergeResultData(resultData, data);
+		//Object.assign(resultData, data);
+	}
+
+	if (getNthResult == 6) {
+		console.log("resultData: " + resultData);
+		ecertExemptionsCodeListGrid.setData(resultData);
+		return;
+	}
+}
+
+function filterWithOrOnMultipleFields(search, exemptionTypes) {
+	resultData = {};
+	getNthResult = 0;
+	ecertExemptionsCodeListGrid.setData([]);
+	console.log("exemptionTypes~~~~");
+	console.log(exemptionTypes);
+	//alert("how?");
+
+	if(exemptionTypes == undefined || exemptionTypes == null || exemptionTypes == ""){
+		
+		ecertExemptionsCodeDS.fetchData({"level_no1": search}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no2": search}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no3": search}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no4": search}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no5": search}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"keywords": search}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+
+	}else{
+		
+		ecertExemptionsCodeDS.fetchData({"level_no1": search, "exemption_type": exemptionTypes}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no2": search, "exemption_type": exemptionTypes}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no3": search, "exemption_type": exemptionTypes}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no4": search, "exemption_type": exemptionTypes}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"level_no5": search, "exemption_type": exemptionTypes}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+		ecertExemptionsCodeDS.fetchData({"keywords": search, "exemption_type": exemptionTypes}, function(dsResponse, data, dsRequest) {
+			if (dsResponse.status == 0) {
+				handleResultData(dsResponse, data, dsRequest);
+			}
+	    });
+
+	}
+}
